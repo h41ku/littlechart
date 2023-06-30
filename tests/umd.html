@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, shrink-to-fit=no, user-scalable=no"/>
+    <meta id="theme-color" name="theme-color" content="#ffffff"/>
+<style>
+html {
+    min-height: 100%;;
+    height: 100%;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+    background: #f3f3f3;
+    height: 100%;
+    min-height: 100%;
+    box-sizing: border-box;
+}
+canvas {
+    display: block;
+    margin-top: 4rem;
+    margin-bottom: 4rem;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: content-box;
+}
+</style>
+</head>
+<boby>
+<canvas class="chart" width="1300" height="500"></canvas>
+<script src="../dist/chart.umd.min.js"></script>
+<script>
+
+const chart = new Chart(document.querySelector('canvas'), {
+    fontFamily: 'monospace',
+    fontSize: 15,
+    // xAxisLabelYOffset: 3,
+    // yAxisLabelXOffset: -3,
+    // yAxisLabelYOffset: -1,
+    // xAxisStep: 25.0,
+    // yAxisStep: 50.0,
+    // xCanvasStep: 50,
+    // yCanvasStep: 15,
+    yAxisLabelFormat: y => y.toFixed(2),
+})
+
+{
+    const dataset = new Dataset({
+        lineColor: 'rgb(255,0,0)'
+    })
+    const T = 150, MIN = -100, MAX = 100
+    for (let x = -50000; x <= 50000; x ++) {
+        const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
+        dataset.points.push([x, y])
+    }
+    chart.datasets.push(dataset)
+}
+
+{
+    const dataset = new Dataset({
+        lineColor: 'rgb(0,255,0)',
+        isStepped: true
+    })
+    const T = 150, MIN = -50, MAX = 50
+    for (let x = -6000; x <= -4000; x ++) {
+        const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
+        dataset.points.push([x, y])
+    }
+    chart.datasets.push(dataset)
+}
+
+{
+    const dataset = new Dataset({
+        lineColor: 'rgb(0,0,255)',
+        isStepped: true
+    })
+    const T = 150, MIN = -10000, MAX = 10000
+    for (let x = 2000; x <= 4000; x ++) {
+        const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
+        dataset.points.push([x, y])
+    }
+    chart.datasets.push(dataset)
+}
+
+{
+    const dataset = new Dataset({
+        lineColor: 'rgb(255,0,255)'
+    })
+    let y = -2000
+    for (let x = 200; x <= 1000; x += 5) {
+        y += 1 + 2 * Math.random()
+        dataset.points.push([x, y])
+    }
+    chart.datasets.push(dataset)
+}
+
+// {
+//     const dataset = new Dataset({
+//         lineColor: 'orange'
+//     })
+//     const T = 150, MIN = -100, MAX = 100
+//     let x
+//     for (x = -300; x <= 300; x ++) {
+//         const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
+//         dataset.points.push([x, y])
+//     }
+//     chart.datasets.push(dataset)
+//     setInterval(() => {
+//         const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
+//         dataset.points.push([x, y])
+//         chart.fitView(new DOMRect(x - 2 * T, MIN, 2 * T, MAX - MIN), false)
+//         chart.repaint()
+//         x ++
+//     }, 50)
+// }
+
+chart.repaint()
+
+window.chart = chart
+
+</script>
+</boby>
+</html>

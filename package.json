@@ -1,0 +1,16 @@
+{
+    "name": "littlechart",
+    "version": "1.0.0",
+    "type": "module",
+    "author": "h41ku <h41ku.c0de@ya.ru>",
+    "license": "MIT",
+    "scripts": {
+        "build-esm": "webpack --config webpack.config.esm.bundle.js",
+        "build-umd": "webpack --config webpack.config.umd.bundle.js",
+        "build": "npm run build-esm && npm run build-umd"
+    },
+    "devDependencies": {
+        "webpack": "^5.75.0",
+        "webpack-cli": "^5.0.1"
+    }
+}
