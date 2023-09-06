@@ -1,4 +1,5 @@
-import { isZero, vec2, vec2copy, vec2add, vec2sub, vec2mul, vec2div, vec2muladd, vec2neglerp } from './vec2.mjs'
+import { isZero, vec2, vec2copy, vec2add, vec2sub, vec2mul, vec2div, vec2muladd, vec2neglerp, vec2subdiv, vec2lerp } from './vec2.mjs'
+import { findLess } from './BinarySearch.mjs'
 import TouchGestures from './TouchGestures.mjs'
 
 function isIntersects(r1, r2) {
@@ -23,143 +24,85 @@ function isNodesIntersects(nodes) { // TODO optimize, test only half of array
     return false
 }
 
+const defaultOptions = {
+    xCanvasStep: 25,
+    yCanvasStep: 25,
+    xAxisStep: 1,
+    yAxisStep: 1,
+    xOffset: 0,
+    yOffset: 0,
+    xScale: 1,
+    yScale: 1,
+    xAxisSubdivisions: 10.0,
+    yAxisSubdivisions: 10.0,
+    fontSize: 15,
+    fontFamily: 'monospace',
+    xAxisLabelXOffset: 0,
+    xAxisLabelYOffset: 0,
+    xAxisLabelDynamicPosition: true,
+    xAxisLabelSpacing: 15,
+    xAxisLabelFormat: x => x.toFixed(4),
+    xAxisLabelJoiningStep: 5.0,
+    xAxisLabelMarkOffset: -2,
+    xAxisLabelMarkSize: 4,
+    xAxisLabelDisplayZero: true,
+    xAxisLabelEnable: true,
+    yAxisLabelXOffset: 0,
+    yAxisLabelYOffset: 0,
+    yAxisLabelDynamicPosition: true,
+    yAxisLabelSpacing: 0,
+    yAxisLabelFormat: y => y.toFixed(4),
+    yAxisLabelJoiningStep: 5.0,
+    yAxisLabelMarkOffset: -2,
+    yAxisLabelMarkSize: 4,
+    yAxisLabelDisplayZero: true,
+    yAxisLabelEnable: true,
+    backgroundColor: '#ffffff',
+    gridColor: 'rgba(0,0,0,0.1)',
+    axesColor: 'rgba(0,0,0,0.5)',
+    userTranslateX: true,
+    userTranslateY: true,
+    userScaleX: true,
+    userScaleY: true,
+    canvasRatio: 1,
+    canvasPixelRatio: 1,
+    clearFrame: false,
+    pointsOfInterestEnable: false,
+    pointsOfInterestXAxisLabelEnable: true,
+    pointsOfInterestYAxisLabelEnable: true,
+    pointsOfInterestXAxisLabelFormat: null, // means use xAxisLabelFormat
+    pointsOfInterestYAxisLabelFormat: null, // means use yAxisLabelFormat
+    pointsOfInterestXAxisLabelOffsetX: 10,
+    pointsOfInterestXAxisLabelOffsetY: -3,
+    pointsOfInterestYAxisLabelOffsetX: 10,
+    pointsOfInterestYAxisLabelOffsetY: 12,
+    pointsOfInterestRadius: 3,
+    pointsOfInterestXAxisEnable: true,
+    pointsOfInterestYAxisEnable: true,
+    pointsOfInterestAxesColor: 'rgba(0,0,0,0.1)',
+    pointsOfInterestXAxisLabelBackgroundColor: 'rgba(0,0,0,1)',
+    pointsOfInterestXAxisLabelColor: 'rgba(255,255,255,1)',
+    pointsOfInterestYAxisLabelBackgroundColor: 'rgba(0,0,0,1)',
+    pointsOfInterestYAxisLabelColor: 'rgba(255,255,255,1)',
+    bindEventHandlers: true
+}
+
 class Chart {
 
     constructor(elCanvas, options = {}) {
-        if (!('xCanvasStep' in options)) {
-            options.xCanvasStep = 25
-        }
-        if (!('yCanvasStep' in options)) {
-            options.yCanvasStep = 25
-        }
-        if (!('xAxisStep' in options)) {
-            options.xAxisStep = 1
-        }
-        if (!('yAxisStep' in options)) {
-            options.yAxisStep = 1
-        }
-        if (!('xOffset' in options)) {
-            options.xOffset = 0
-        }
-        if (!('yOffset' in options)) {
-            options.yOffset = 0
-        }
-        if (!('xScale' in options)) {
-            options.xScale = 1
-        }
-        if (!('yScale' in options)) {
-            options.yScale = 1
-        }
-        if (!('xAxisSubdivisions' in options)) {
-            options.xAxisSubdivisions = 10.0
-        }
-        if (!('yAxisSubdivisions' in options)) {
-            options.yAxisSubdivisions = 10.0
-        }
-        if (!('fontSize' in options)) {
-            options.fontSize = 15
-        }
-        if (!('fontFamily' in options)) {
-            options.fontFamily = 'monospace'
-        }
-        if (!('xAxisLabelXOffset' in options)) {
-            options.xAxisLabelXOffset = 0
-        }
-        if (!('xAxisLabelYOffset' in options)) {
-            options.xAxisLabelYOffset = 0
-        }
-        if (!('xAxisLabelDynamicPosition' in options)) {
-            options.xAxisLabelDynamicPosition = true
-        }
-        if (!('xAxisLabelSpacing' in options)) {
-            options.xAxisLabelSpacing = options.fontSize
-        }
-        if (!('xAxisLabelFormat' in options)) {
-            options.xAxisLabelFormat = x => x.toFixed(4)
-        }
-        if (!('xAxisLabelJoiningStep' in options)) {
-            options.xAxisLabelJoiningStep = 5.0
-        }
-        if (!('xAxisLabelMarkOffset' in options)) {
-            options.xAxisLabelMarkOffset = -2
-        }
-        if (!('xAxisLabelMarkSize' in options)) {
-            options.xAxisLabelMarkSize = 4
-        }
-        if (!('xAxisLabelDisplayZero' in options)) {
-            options.xAxisLabelDisplayZero = true
-        }
-        if (!('xAxisLabelEnable' in options)) {
-            options.xAxisLabelEnable = true
-        }
-        if (!('yAxisLabelXOffset' in options)) {
-            options.yAxisLabelXOffset = 0
-        }
-        if (!('yAxisLabelYOffset' in options)) {
-            options.yAxisLabelYOffset = 0
-        }
-        if (!('yAxisLabelDynamicPosition' in options)) {
-            options.yAxisLabelDynamicPosition = true
-        }
-        if (!('yAxisLabelSpacing' in options)) {
-            options.yAxisLabelSpacing = 0
-        }
-        if (!('yAxisLabelFormat' in options)) {
-            options.yAxisLabelFormat = y => y.toFixed(4)
-        }
-        if (!('yAxisLabelJoiningStep' in options)) {
-            options.yAxisLabelJoiningStep = 5.0
-        }
-        if (!('yAxisLabelMarkOffset' in options)) {
-            options.yAxisLabelMarkOffset = -2
-        }
-        if (!('yAxisLabelMarkSize' in options)) {
-            options.yAxisLabelMarkSize = 4
-        }
-        if (!('yAxisLabelDisplayZero' in options)) {
-            options.yAxisLabelDisplayZero = true
-        }
-        if (!('yAxisLabelEnable' in options)) {
-            options.yAxisLabelEnable = true
-        }
-        if (!('backgroundColor' in options)) {
-            options.backgroundColor = '#ffffff'
-        }
-        if (!('gridColor' in options)) {
-            options.gridColor = 'rgba(0,0,0,0.1)'
-        }
-        if (!('axesColor' in options)) {
-            options.axesColor = 'rgba(0,0,0,0.5)'
-        }
-        if (!('userTranslateX' in options)) {
-            options.userTranslateX = true
-        }
-        if (!('userTranslateY' in options)) {
-            options.userTranslateY = true
-        }
-        if (!('userScaleX' in options)) {
-            options.userScaleX = true
-        }
-        if (!('userScaleY' in options)) {
-            options.userScaleY = true
-        }
-        if (!('canvasRatio' in options)) {
-            options.canvasRatio = 1
-        }
-        if (!('canvasPixelRatio' in options)) {
-            options.canvasPixelRatio = 1
-        }
-        if (!('clearFrame' in options)) {
-            options.clearFrame = false
-        }
-        if (!('bindEventHandlers' in options)) {
-            options.bindEventHandlers = true
-        }
+
+        Object.keys(defaultOptions).forEach(key => {
+            if (!(key in options)) {
+                options[key] = defaultOptions[key]
+            }
+        })
+
         this.options = options
         this.elCanvas = elCanvas
         this.ctx = elCanvas.getContext('2d')
         this.scale = vec2(options.xScale, options.yScale)
         this.translate = vec2(options.xOffset, options.yOffset)
+        this.poi = vec2(0, 0)
         this.datasets = []
 
         const mouseState = {
@@ -186,8 +129,8 @@ class Chart {
             mouseState.down = false
         }
         this.listeners[TouchGestures.EVT_NAME_POINTERMOVE] = evt => {
+            pointFromMouseEvent(mouseState.pt, evt.detail)
             if (mouseState.down) {
-                pointFromMouseEvent(mouseState.pt, evt.detail)
                 vec2sub(mouseState.delta, mouseState.pt, mouseState.pt0)
                 vec2copy(mouseState.pt0, mouseState.pt)
                 const delta = vec2(
@@ -195,6 +138,14 @@ class Chart {
                     options.userTranslateY ? mouseState.delta[1] : 0
                 )
                 this.move(delta)
+                this.repaint()
+            } else if (options.pointsOfInterestEnable) {
+                const r = vec2()
+                vec2subdiv(r, mouseState.pt, vec2(options.xCanvasStep, options.yCanvasStep), this.translate)
+                r[1] = -r[1]
+                vec2mul(r, r, vec2(options.xAxisStep, options.yAxisStep))
+                vec2div(r, r, this.scale)
+                this.computePointsOfInterest(r)
                 this.repaint()
             }
         }
@@ -215,6 +166,26 @@ class Chart {
         if (options.bindEventHandlers) {
             this.bind()
         }
+    }
+
+    computePointsOfInterest(p) {
+
+        this.datasets.forEach(dataset => {
+            const points = dataset.points
+            const i0 = findLess(i => points[i][0], 0, points.length - 1, p[0])
+            const i1 = i0 + 1
+            if (i0 >= 0 && i1 < points.length) {
+                const r = vec2()
+                const p1 = points[i0]
+                const p2 = points[i1]
+                const t = (p[0] - p1[0]) / (p2[0] - p1[0])
+                vec2lerp(r, p1, p2, vec2(t, dataset.options.isStepped ? 0 : t))
+                dataset.poi = r
+            } else {
+                dataset.poi = null
+            }
+        })
+        vec2copy(this.poi, p)
     }
 
     bind() {
@@ -371,7 +342,7 @@ class Chart {
         const u = vec2(opts.xAxisStep, opts.yAxisStep)
         const gridScale = vec2(1, 1)
         const subdivisions = vec2(opts.xAxisSubdivisions, opts.yAxisSubdivisions)
-
+        
         while (su[0] > canvasStep[0] * subdivisions[0]) { // TODO optimize, remove loop
             su[0] /= subdivisions[0]
             gridScale[0] /= subdivisions[0]
@@ -391,6 +362,15 @@ class Chart {
 
         const stx = o[0] - (Math.floor(o[0] / su[0]) + (o[0] > 0 ? 1 : 0)) * su[0]
         const sty = o[1] - (Math.floor(o[1] / su[1]) + (o[1] > 0 ? 1 : 0)) * su[1]
+
+        const transform = (r, p) => {
+            vec2mul(r, p, canvasStep)
+            vec2div(r, r, u)
+            r[1] = -r[1]
+            vec2muladd(r, r, s, o)
+        }
+
+        const p = vec2()
 
         // clear
         if (opts.clearFrame) {
@@ -413,14 +393,21 @@ class Chart {
         ctx.fillRect(o[0], 0, 1 * px, h)
         ctx.fillRect(0, o[1], w, 1 * px)
 
-        // draw datasets
-        const transform = (r, p) => {
-            vec2mul(r, p, canvasStep)
-            vec2div(r, r, u)
-            r[1] = -r[1]
-            vec2muladd(r, r, s, o)
+        // draw axes for POI
+        ctx.fillStyle = opts.pointsOfInterestAxesColor
+        for (let i = 0, n = this.datasets.length; i < n; i ++) {
+            const dataset = this.datasets[i]
+            if (opts.pointsOfInterestEnable && opts.pointsOfInterestXAxisEnable && dataset.poi) {
+                transform(p, dataset.poi)
+                ctx.fillRect(0, p[1], w, 1 * px)
+            }
         }
-        const p = vec2()
+        if (opts.pointsOfInterestEnable && opts.pointsOfInterestYAxisEnable) {
+            transform(p, this.poi)
+            ctx.fillRect(p[0], 0, 1 * px, h)
+        }
+
+        // draw datasets
         for (let i = 0, n = this.datasets.length; i < n; i ++) {
             const dataset = this.datasets[i]
             const points = dataset.points
@@ -632,6 +619,70 @@ class Chart {
                         label.x,
                         label.y
                     )
+                }
+            }
+        }
+
+        // draw POI labels
+        if (opts.pointsOfInterestEnable && (opts.pointsOfInterestXAxisLabelEnable || opts.pointsOfInterestYAxisLabelEnable)) {
+            const fs = opts.fontSize * px
+            ctx.font = `${fs}px/1 ${opts.fontFamily}`
+            for (let i = 0, n = this.datasets.length; i < n; i ++) {
+                const dataset = this.datasets[i]
+                if (opts.pointsOfInterestEnable && dataset.poi) {
+                    transform(p, dataset.poi)
+                    ctx.fillStyle = dataset.options.lineColor
+                    ctx.beginPath()
+                    ctx.arc(p[0], p[1], opts.pointsOfInterestRadius, 0, 2 * Math.PI, false)
+                    ctx.fill()
+                    if (opts.pointsOfInterestXAxisLabelEnable) {
+                        const text = (opts.pointsOfInterestXAxisLabelFormat
+                            ? opts.pointsOfInterestXAxisLabelFormat
+                            : opts.xAxisLabelFormat)(dataset.poi[0], dataset)
+                        const metrics = ctx.measureText(text)
+                        const x = p[0] + opts.pointsOfInterestXAxisLabelOffsetX
+                        const y = p[1] + opts.pointsOfInterestXAxisLabelOffsetY
+                        const ascent = y - Math.abs(metrics.actualBoundingBoxAscent)
+                        const descent = y + Math.abs(metrics.actualBoundingBoxDescent)
+                        const height = descent - ascent
+                        ctx.fillStyle = opts.pointsOfInterestXAxisLabelBackgroundColor
+                        ctx.fillRect(
+                            x,
+                            y - height - 1,
+                            metrics.width,
+                            height + 2
+                        )
+                        ctx.fillStyle = opts.pointsOfInterestXAxisLabelColor
+                        ctx.fillText(
+                            text,
+                            x,
+                            y - Math.abs(metrics.actualBoundingBoxDescent)
+                        )
+                    }
+                    if (opts.pointsOfInterestYAxisLabelEnable) {
+                        const text = (opts.pointsOfInterestYAxisLabelFormat
+                            ? opts.pointsOfInterestYAxisLabelFormat
+                            : opts.yAxisLabelFormat)(dataset.poi[1], dataset)
+                        const metrics = ctx.measureText(text)
+                        const x = p[0] + opts.pointsOfInterestYAxisLabelOffsetX
+                        const y = p[1] + opts.pointsOfInterestYAxisLabelOffsetY
+                        const ascent = y - Math.abs(metrics.actualBoundingBoxAscent)
+                        const descent = y + Math.abs(metrics.actualBoundingBoxDescent)
+                        const height = descent - ascent
+                        ctx.fillStyle = opts.pointsOfInterestYAxisLabelBackgroundColor
+                        ctx.fillRect(
+                            x - 1,
+                            y - height - 1,
+                            metrics.width + 2,
+                            height + 2
+                        )
+                        ctx.fillStyle = opts.pointsOfInterestYAxisLabelColor
+                        ctx.fillText(
+                            text,
+                            x,
+                            y - Math.abs(metrics.actualBoundingBoxDescent)
+                        )
+                    }
                 }
             }
         }
