@@ -113,9 +113,13 @@ class Chart {
         }
 
         const pointFromMouseEvent = (r, evt) => {
-            const bRect = elCanvas.getBoundingClientRect()
-            r[0] = (evt.clientX - bRect.left) / options.canvasRatio
-            r[1] = (evt.clientY - bRect.top) / options.canvasRatio
+            const { clientX: x, clientY: y } = evt
+            const { left, right, top, bottom } = elCanvas.getBoundingClientRect()
+            r[0] = (x - left) / options.canvasRatio
+            r[1] = (y - top) / options.canvasRatio
+            const isInsideCanvas = left <= x && x <= right
+                && top <= y && y <= bottom
+            return isInsideCanvas
         }
 
         this.isListening = false
@@ -129,7 +133,7 @@ class Chart {
             mouseState.down = false
         }
         this.listeners[TouchGestures.EVT_NAME_POINTERMOVE] = evt => {
-            pointFromMouseEvent(mouseState.pt, evt.detail)
+            const isInsideCanvas = pointFromMouseEvent(mouseState.pt, evt.detail)
             if (mouseState.down) {
                 vec2sub(mouseState.delta, mouseState.pt, mouseState.pt0)
                 vec2copy(mouseState.pt0, mouseState.pt)
@@ -139,7 +143,7 @@ class Chart {
                 )
                 this.move(delta)
                 this.repaint()
-            } else if (options.pointsOfInterestEnable) {
+            } else if (options.pointsOfInterestEnable && isInsideCanvas) {
                 const r = vec2()
                 vec2subdiv(r, mouseState.pt, vec2(options.xCanvasStep, options.yCanvasStep), this.translate)
                 r[1] = -r[1]
