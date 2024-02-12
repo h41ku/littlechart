@@ -33,7 +33,7 @@ canvas {
 <canvas class="chart" width="1300" height="500"></canvas>
 <script type="module">
 
-import { Chart, Dataset } from '../dist/chart.esm.min.js'
+import { Chart, Dataset } from '../dist/littlechart.esm.min.js'
 
 const chart = new Chart(document.querySelector('canvas'), {
     fontFamily: 'monospace',
@@ -45,7 +45,10 @@ const chart = new Chart(document.querySelector('canvas'), {
     // yAxisStep: 50.0,
     // xCanvasStep: 50,
     // yCanvasStep: 15,
-    yAxisLabelFormat: y => y.toFixed(2),
+    pointsOfInterestXAxisLabelFormat: x => `X is: ${x.toFixed(4)}`,
+    pointsOfInterestYAxisLabelFormat: y => `Y is: ${y.toFixed(2)}`,
+    // pointsOfInterestXAxisLabelEnable: false,
+    // pointsOfInterestYAxisLabelEnable: false,
     pointsOfInterestEnable: true
 })
 

@@ -74,8 +74,16 @@ const defaultOptions = {
     pointsOfInterestYAxisLabelFormat: null, // means use yAxisLabelFormat
     pointsOfInterestXAxisLabelOffsetX: 10,
     pointsOfInterestXAxisLabelOffsetY: -3,
+    pointsOfInterestXAxisLabelPaddingLeft: 4,
+    pointsOfInterestXAxisLabelPaddingRight: 4,
+    pointsOfInterestXAxisLabelPaddingTop: 4,
+    pointsOfInterestXAxisLabelPaddingBottom: 2,
     pointsOfInterestYAxisLabelOffsetX: 10,
     pointsOfInterestYAxisLabelOffsetY: 12,
+    pointsOfInterestYAxisLabelPaddingLeft: 4,
+    pointsOfInterestYAxisLabelPaddingRight: 4,
+    pointsOfInterestYAxisLabelPaddingTop: 2,
+    pointsOfInterestYAxisLabelPaddingBottom: 4,
     pointsOfInterestRadius: 3,
     pointsOfInterestXAxisEnable: true,
     pointsOfInterestYAxisEnable: true,
@@ -84,6 +92,9 @@ const defaultOptions = {
     pointsOfInterestXAxisLabelColor: 'rgba(255,255,255,1)',
     pointsOfInterestYAxisLabelBackgroundColor: 'rgba(0,0,0,1)',
     pointsOfInterestYAxisLabelColor: 'rgba(255,255,255,1)',
+    pointsOfInterestSyncWidth: true,
+    cursorPointer: 'pointer',
+    cursorGrabbing: 'grabbing',
     bindEventHandlers: true
 }
 
@@ -91,19 +102,21 @@ class Chart {
 
     constructor(elCanvas, options = {}) {
 
-        Object.keys(defaultOptions).forEach(key => {
-            if (!(key in options)) {
-                options[key] = defaultOptions[key]
-            }
-        })
+        // Object.keys(defaultOptions).forEach(key => {
+        //     if (!(key in options)) {
+        //         options[key] = defaultOptions[key]
+        //     }
+        // })
 
-        this.options = options
+        this.options = options = { ...defaultOptions, ...options }
         this.elCanvas = elCanvas
         this.ctx = elCanvas.getContext('2d')
         this.scale = vec2(options.xScale, options.yScale)
         this.translate = vec2(options.xOffset, options.yOffset)
         this.poi = vec2(0, 0)
         this.datasets = []
+
+        elCanvas.style.cursor = options.cursorPointer
 
         const mouseState = {
             down: false,
@@ -125,12 +138,14 @@ class Chart {
         this.isListening = false
         this.listeners = { }
         this.listeners[TouchGestures.EVT_NAME_POINTERDOWN] = evt => {
+            elCanvas.style.cursor = options.cursorGrabbing
             evt.detail.originalEvent.preventDefault()
             mouseState.down = true
             pointFromMouseEvent(mouseState.pt0, evt.detail)
         }
         this.listeners[TouchGestures.EVT_NAME_POINTERUP] = evt => {
             mouseState.down = false
+            elCanvas.style.cursor = options.cursorPointer
         }
         this.listeners[TouchGestures.EVT_NAME_POINTERMOVE] = evt => {
             const isInsideCanvas = pointFromMouseEvent(mouseState.pt, evt.detail)
@@ -639,6 +654,7 @@ class Chart {
                     ctx.beginPath()
                     ctx.arc(p[0], p[1], opts.pointsOfInterestRadius, 0, 2 * Math.PI, false)
                     ctx.fill()
+                    const poiLabels = []
                     if (opts.pointsOfInterestXAxisLabelEnable) {
                         const text = (opts.pointsOfInterestXAxisLabelFormat
                             ? opts.pointsOfInterestXAxisLabelFormat
@@ -649,19 +665,20 @@ class Chart {
                         const ascent = y - Math.abs(metrics.actualBoundingBoxAscent)
                         const descent = y + Math.abs(metrics.actualBoundingBoxDescent)
                         const height = descent - ascent
-                        ctx.fillStyle = opts.pointsOfInterestXAxisLabelBackgroundColor
-                        ctx.fillRect(
-                            x,
-                            y - height - 1,
-                            metrics.width,
-                            height + 2
-                        )
-                        ctx.fillStyle = opts.pointsOfInterestXAxisLabelColor
-                        ctx.fillText(
+                        poiLabels.push({
                             text,
+                            fgColor: opts.pointsOfInterestXAxisLabelColor,
+                            bgColor: opts.pointsOfInterestXAxisLabelBackgroundColor,
                             x,
-                            y - Math.abs(metrics.actualBoundingBoxDescent)
-                        )
+                            y,
+                            actualBoundingBoxDescent: metrics.actualBoundingBoxDescent,
+                            width: metrics.width,
+                            height,
+                            padLeft: opts.pointsOfInterestXAxisLabelPaddingLeft,
+                            padRight: opts.pointsOfInterestXAxisLabelPaddingRight,
+                            padTop: opts.pointsOfInterestXAxisLabelPaddingTop,
+                            padBottom: opts.pointsOfInterestXAxisLabelPaddingBottom
+                        })
                     }
                     if (opts.pointsOfInterestYAxisLabelEnable) {
                         const text = (opts.pointsOfInterestYAxisLabelFormat
@@ -673,18 +690,44 @@ class Chart {
                         const ascent = y - Math.abs(metrics.actualBoundingBoxAscent)
                         const descent = y + Math.abs(metrics.actualBoundingBoxDescent)
                         const height = descent - ascent
-                        ctx.fillStyle = opts.pointsOfInterestYAxisLabelBackgroundColor
-                        ctx.fillRect(
-                            x - 1,
-                            y - height - 1,
-                            metrics.width + 2,
-                            height + 2
-                        )
-                        ctx.fillStyle = opts.pointsOfInterestYAxisLabelColor
-                        ctx.fillText(
+                        poiLabels.push({
                             text,
+                            fgColor: opts.pointsOfInterestYAxisLabelColor,
+                            bgColor: opts.pointsOfInterestYAxisLabelBackgroundColor,
                             x,
-                            y - Math.abs(metrics.actualBoundingBoxDescent)
+                            y,
+                            actualBoundingBoxDescent: metrics.actualBoundingBoxDescent,
+                            width: metrics.width,
+                            height,
+                            padLeft: opts.pointsOfInterestYAxisLabelPaddingLeft,
+                            padRight: opts.pointsOfInterestYAxisLabelPaddingRight,
+                            padTop: opts.pointsOfInterestYAxisLabelPaddingTop,
+                            padBottom: opts.pointsOfInterestYAxisLabelPaddingBottom
+                        })
+                    }
+                    if (opts.pointsOfInterestSyncWidth && poiLabels.length > 0) {
+                        const n = poiLabels.length
+                        const maxWidth = poiLabels[0].width
+                        for (let j = 1; j < n; j ++)
+                            if (maxWidth < poiLabels[j].width)
+                                maxWidth = poiLabels[j].width
+                        for (let j = 0; j < n; j ++)
+                        poiLabels[j].width = maxWidth
+                    }
+                    for (let j = 0, n = poiLabels.length; j < n; j ++) {
+                        const poi = poiLabels[j]
+                        ctx.fillStyle = poi.bgColor
+                        ctx.fillRect(
+                            poi.x - poi.padLeft,
+                            poi.y - poi.height - poi.padTop,
+                            poi.width + poi.padLeft + poi.padRight,
+                            poi.height + poi.padTop + poi.padBottom
+                        )
+                        ctx.fillStyle = poi.fgColor
+                        ctx.fillText(
+                            poi.text,
+                            poi.x,
+                            poi.y - Math.abs(poi.actualBoundingBoxDescent)
                         )
                     }
                 }
