@@ -11,6 +11,9 @@ class Dataset {
         if (!('lineWidth' in options)) {
             options.lineWidth = 1
         }
+        if (!('pointRadius' in options)) {
+            options.pointRadius = 0
+        }
         this.options = options
         this.points = []
     }

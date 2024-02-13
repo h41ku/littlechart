@@ -55,7 +55,9 @@ const chart = new Chart(document.querySelector('canvas'), {
 
 {
     const dataset = new Dataset({
-        lineColor: 'rgb(255,0,0)'
+        lineColor: 'rgb(255,0,0)',
+        // lineWidth: 2,
+        // pointRadius: 3,
     })
     const T = 150, MIN = -100, MAX = 100
     for (let x = -50000; x <= 50000; x ++) {
