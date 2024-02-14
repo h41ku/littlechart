@@ -70,43 +70,29 @@ const defaultOptions = {
     canvasPixelRatio: 1,
     clearFrame: false,
     pointsOfInterestEnable: false,
-    pointsOfInterestXAxisLabelEnable: true,
-    pointsOfInterestYAxisLabelEnable: true,
-    pointsOfInterestXAxisLabelFormat: null, // means use xAxisLabelFormat
-    pointsOfInterestYAxisLabelFormat: null, // means use yAxisLabelFormat
+    pointsOfInterestLabelFormat: (x, y, dataset, opts) => `X: ${opts.xAxisLabelFormat(x)}\nY: ${opts.yAxisLabelFormat(y)}`,
     pointsOfInterestLabelOffsetX: 15,
     pointsOfInterestLabelOffsetY: 0,
-    pointsOfInterestXAxisLabelPaddingLeft: 8,
-    pointsOfInterestXAxisLabelPaddingRight: 8,
-    pointsOfInterestXAxisLabelPaddingTop: 4,
-    pointsOfInterestXAxisLabelPaddingBottom: 2,
-    pointsOfInterestYAxisLabelPaddingLeft: 8,
-    pointsOfInterestYAxisLabelPaddingRight: 8,
-    pointsOfInterestYAxisLabelPaddingTop: 2,
-    pointsOfInterestYAxisLabelPaddingBottom: 4,
+    pointsOfInterestLabelPaddingLeft: 10,
+    pointsOfInterestLabelPaddingRight: 10,
+    pointsOfInterestLabelPaddingTop: 5,
+    pointsOfInterestLabelPaddingBottom: 5,
     pointsOfInterestRadius: 3,
     pointsOfInterestXAxisEnable: true,
     pointsOfInterestYAxisEnable: true,
     pointsOfInterestAxesColor: 'rgba(0,0,0,0.1)',
-    pointsOfInterestXAxisLabelBackgroundColor: 'rgba(0,0,0,1)',
-    pointsOfInterestXAxisLabelColor: 'rgba(255,255,255,1)',
-    pointsOfInterestYAxisLabelBackgroundColor: 'rgba(0,0,0,1)',
-    pointsOfInterestYAxisLabelColor: 'rgba(255,255,255,1)',
-    pointsOfInterestSyncWidth: true,
+    pointsOfInterestLabelBackgroundColor: 'rgba(0,0,0,1)',
+    pointsOfInterestLabelColor: 'rgba(255,255,255,1)',
     cursorPointer: 'pointer',
     cursorGrabbing: 'grabbing',
-    bindEventHandlers: true
+    bindEventHandlers: true,
+    invertMouseWheel: false,
+    mouseWheelStep: 0.1
 }
 
 class Chart {
 
     constructor(elCanvas, options = {}) {
-
-        // Object.keys(defaultOptions).forEach(key => {
-        //     if (!(key in options)) {
-        //         options[key] = defaultOptions[key]
-        //     }
-        // })
 
         this.options = options = { ...defaultOptions, ...options }
         this.elCanvas = elCanvas
@@ -180,7 +166,10 @@ class Chart {
             this.repaint()
         }
 
-        this.touchGestures = new TouchGestures(elCanvas)
+        this.touchGestures = new TouchGestures(elCanvas, {
+            invertMouseWheel: options.invertMouseWheel,
+            mouseWheelStep: options.mouseWheelStep
+        })
 
         if (options.bindEventHandlers) {
             this.bind()
@@ -658,7 +647,7 @@ class Chart {
         }
 
         // draw POI labels
-        if (opts.pointsOfInterestEnable && (opts.pointsOfInterestXAxisLabelEnable || opts.pointsOfInterestYAxisLabelEnable)) {
+        if (opts.pointsOfInterestEnable) {
             const fs = opts.fontSize * px
             ctx.font = `${fs}px/1 ${opts.fontFamily}`
             for (let i = 0, n = this.datasets.length; i < n; i ++) {
@@ -669,91 +658,42 @@ class Chart {
                     ctx.beginPath()
                     ctx.arc(p[0], p[1], opts.pointsOfInterestRadius, 0, 2 * Math.PI, false)
                     ctx.fill()
-                    const poiLabels = []
-                    let totalHeight = 0
-                    if (opts.pointsOfInterestXAxisLabelEnable) {
-                        const text = (opts.pointsOfInterestXAxisLabelFormat
-                            ? opts.pointsOfInterestXAxisLabelFormat
-                            : opts.xAxisLabelFormat)(dataset.poi[0], dataset)
-                        const metrics = ctx.measureText(text)
-                        const textX = p[0] + opts.pointsOfInterestXAxisLabelPaddingLeft
-                        const textY = p[1] + opts.pointsOfInterestXAxisLabelPaddingTop
-                        const bbDescent = Math.abs(metrics.actualBoundingBoxDescent)
-                        const ascent = textY - Math.abs(metrics.actualBoundingBoxAscent)
-                        const descent = textY + bbDescent
-                        const textWidth = metrics.width
-                        const textHeight = descent - ascent
-                        const label = {
-                            text,
-                            textColor: opts.pointsOfInterestXAxisLabelColor,
-                            textX,
-                            textY: textY + textHeight,
-                            textWidth,
-                            textHeight,
-                            boxX: textX - opts.pointsOfInterestXAxisLabelPaddingLeft,
-                            boxY: textY - opts.pointsOfInterestXAxisLabelPaddingTop - bbDescent,
-                            boxWidth: textWidth + opts.pointsOfInterestXAxisLabelPaddingLeft + opts.pointsOfInterestXAxisLabelPaddingRight,
-                            boxHeight: textHeight + opts.pointsOfInterestXAxisLabelPaddingTop + opts.pointsOfInterestXAxisLabelPaddingBottom,
-                            boxColor: opts.pointsOfInterestXAxisLabelBackgroundColor,
-                        }
-                        poiLabels.push(label)
-                        totalHeight += label.boxHeight
+                    const lines = opts.pointsOfInterestLabelFormat(dataset.poi[0], dataset.poi[1], dataset, opts).split('\n')
+                    let fullWidth = 0
+                    let fullHeight = 0
+                    let correction = 0
+                    for (let j = 0, n = lines.length; j < n; j ++) {
+                        const line = lines[j]
+                        const metrics = ctx.measureText(line)
+                        const width = metrics.width
+                        if (fullWidth < width)
+                            fullWidth = width
+                        fullHeight += opts.fontSize
+                        const ascent = -Math.abs(metrics.actualBoundingBoxAscent)
+                        const descent = Math.abs(metrics.actualBoundingBoxDescent)
+                        correction = opts.fontSize - (descent - ascent)
                     }
-                    if (opts.pointsOfInterestYAxisLabelEnable) {
-                        const text = (opts.pointsOfInterestYAxisLabelFormat
-                            ? opts.pointsOfInterestYAxisLabelFormat
-                            : opts.yAxisLabelFormat)(dataset.poi[1], dataset)
-                        const metrics = ctx.measureText(text)
-                        const textX = p[0] + opts.pointsOfInterestYAxisLabelPaddingLeft
-                        const textY = p[1] + opts.pointsOfInterestYAxisLabelPaddingTop
-                        const bbDescent = Math.abs(metrics.actualBoundingBoxDescent)
-                        const ascent = y - Math.abs(metrics.actualBoundingBoxAscent)
-                        const descent = y + bbDescent
-                        const textWidth = metrics.width
-                        const textHeight = descent - ascent
-                        const label = {
-                            text,
-                            textColor: opts.pointsOfInterestYAxisLabelColor,
-                            textX,
-                            textY: textY + textHeight,
-                            textWidth,
-                            textHeight,
-                            boxX: textX - opts.pointsOfInterestYAxisLabelPaddingLeft,
-                            boxY: textY - opts.pointsOfInterestYAxisLabelPaddingTop - bbDescent,
-                            boxWidth: textWidth + opts.pointsOfInterestYAxisLabelPaddingLeft + opts.pointsOfInterestYAxisLabelPaddingRight,
-                            boxHeight: textHeight + opts.pointsOfInterestYAxisLabelPaddingTop + opts.pointsOfInterestYAxisLabelPaddingBottom,
-                            boxColor: opts.pointsOfInterestYAxisLabelBackgroundColor,
-                        }
-                        poiLabels.push(label)
-                        totalHeight += label.boxHeight
-                    }
-                    if (opts.pointsOfInterestSyncWidth && poiLabels.length > 0) {
-                        const n = poiLabels.length
-                        const maxWidth = poiLabels[0].boxWidth
-                        for (let j = 1; j < n; j ++)
-                            if (maxWidth < poiLabels[j].boxWidth)
-                                maxWidth = poiLabels[j].boxWidth
-                        for (let j = 0; j < n; j ++)
-                            poiLabels[j].boxWidth = maxWidth
-                    }
-                    let offsetX = opts.pointsOfInterestLabelOffsetX
-                    let offsetY = opts.pointsOfInterestLabelOffsetY - totalHeight / 2
-                    for (let j = 0, n = poiLabels.length; j < n; j ++) {
-                        const poi = poiLabels[j]
-                        ctx.fillStyle = poi.boxColor
-                        ctx.fillRect(
-                            poi.boxX + offsetX,
-                            poi.boxY + offsetY,
-                            poi.boxWidth,
-                            poi.boxHeight
-                        )
-                        ctx.fillStyle = poi.textColor
+                    fullWidth += opts.pointsOfInterestLabelPaddingLeft + opts.pointsOfInterestLabelPaddingRight
+                    fullHeight += opts.pointsOfInterestLabelPaddingTop + opts.pointsOfInterestLabelPaddingBottom + correction
+                    let offsetX = p[0] + opts.pointsOfInterestLabelOffsetX
+                    let offsetY = p[1] + opts.pointsOfInterestLabelOffsetY - fullHeight / 2
+                    ctx.fillStyle = opts.pointsOfInterestLabelBackgroundColor
+                    ctx.fillRect(
+                        offsetX,
+                        offsetY,
+                        fullWidth,
+                        fullHeight
+                    )
+                    offsetX += opts.pointsOfInterestLabelPaddingLeft
+                    offsetY += opts.pointsOfInterestLabelPaddingTop
+                    ctx.fillStyle = opts.pointsOfInterestLabelColor
+                    for (let j = 0, n = lines.length; j < n; j ++) {
                         ctx.fillText(
-                            poi.text,
-                            poi.textX + offsetX,
-                            poi.textY + offsetY
+                            lines[j],
+                            offsetX,
+                            offsetY + opts.fontSize
                         )
-                        offsetY += poi.boxHeight
+                        offsetY += opts.fontSize
                     }
                 }
             }

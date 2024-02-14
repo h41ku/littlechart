@@ -45,11 +45,10 @@ const chart = new Chart(document.querySelector('canvas'), {
     // yAxisStep: 50.0,
     // xCanvasStep: 50,
     // yCanvasStep: 15,
-    pointsOfInterestXAxisLabelFormat: x => `X is: ${x.toFixed(4)}`,
-    pointsOfInterestYAxisLabelFormat: y => `Y is: ${y.toFixed(2)}`,
     // pointsOfInterestXAxisLabelEnable: false,
     // pointsOfInterestYAxisLabelEnable: false,
-    pointsOfInterestEnable: true
+    pointsOfInterestEnable: true,
+    invertMouseWheel: true
 })
 
 {

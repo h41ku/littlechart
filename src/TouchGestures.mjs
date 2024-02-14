@@ -11,12 +11,20 @@ const EVT_NAME_POINTERMOVE = 'sim:pointermove'
 const EVT_NAME_POINTERUP = 'sim:pointerup'
 const EVT_NAME_POINTERZOOM = 'sim:pointerzoom'
 
+const defaultOptions = {
+    listenerElement: null,
+    invertMouseWheel: false,
+    mouseWheelStep: 0.1
+}
+
 class TouchGestures {
 
-    constructor(element, listenerElement = null) {
+    constructor(element, options = {}) {
+
+        const opts = { ...defaultOptions, ...options }
 
         this.element = element
-        this.listenerElement = listenerElement !== null ? listenerElement : element
+        this.listenerElement = opts.listenerElement !== null ? opts.listenerElement : element
 
         const fireEvent = (name, detail) => {
             return this.element.dispatchEvent(new CustomEvent(name, { detail })) // TODO it does not returns false when evt.preventDefault() is called
@@ -29,8 +37,10 @@ class TouchGestures {
 
         let touchId = null
         let secondTouchId = null
-        let touchPoint = { x: 0, y: 0 }
-        let secondTouchPoint = { x: 0, y: 0 }
+        const touchPoint = { x: 0, y: 0 }
+        const secondTouchPoint = { x: 0, y: 0 }
+        const wheelDirection = opts.invertMouseWheel ? -1 : 1
+        const wheelStep = opts.mouseWheelStep
 
         this.listeners = {
 
@@ -253,8 +263,8 @@ class TouchGestures {
             },
 
             wheel: evt => {
-                let deltaScale = 0.1 * (evt.deltaY > 0 ? 1 : -1)
-                let result = pointerzoom(evt, evt.clientX, evt.clientY, deltaScale)
+                const deltaScale = wheelStep * (evt.deltaY > 0 ? 1 : -1) * wheelDirection
+                const result = pointerzoom(evt, evt.clientX, evt.clientY, deltaScale)
                 if (result === false) {
                     evt.stopPropagation()
                     evt.preventDefault()
