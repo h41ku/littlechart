@@ -1,6 +1,8 @@
 import { isZero, vec2, vec2copy, vec2add, vec2sub, vec2mul, vec2div, vec2muladd, vec2neglerp, vec2subdiv, vec2lerp } from './vec2.mjs'
 import { findLess } from './BinarySearch.mjs'
 import TouchGestures from './TouchGestures.mjs'
+import { defaultHintsSettings, createHints, displaceHints, renderHints } from './Hints.mjs'
+import mergeObjects from './mergeObjects.mjs'
 
 function isIntersects(r1, r2) {
     return r1.bottom > r2.top 
@@ -69,20 +71,13 @@ const defaultOptions = {
     canvasRatio: 1,
     canvasPixelRatio: 1,
     clearFrame: false,
-    pointsOfInterestEnable: false,
-    pointsOfInterestLabelFormat: (x, y, dataset, opts) => `X: ${opts.xAxisLabelFormat(x)}\nY: ${opts.yAxisLabelFormat(y)}`,
-    pointsOfInterestLabelOffsetX: 15,
-    pointsOfInterestLabelOffsetY: 0,
-    pointsOfInterestLabelPaddingLeft: 10,
-    pointsOfInterestLabelPaddingRight: 10,
-    pointsOfInterestLabelPaddingTop: 5,
-    pointsOfInterestLabelPaddingBottom: 5,
-    pointsOfInterestRadius: 3,
-    pointsOfInterestXAxisEnable: true,
-    pointsOfInterestYAxisEnable: true,
-    pointsOfInterestAxesColor: 'rgba(0,0,0,0.1)',
-    pointsOfInterestLabelBackgroundColor: 'rgba(0,0,0,1)',
-    pointsOfInterestLabelColor: 'rgba(255,255,255,1)',
+    hints: {
+        settings: defaultHintsSettings(),
+        hintText: (x, y, dataset, opts) => `X: ${opts.xAxisLabelFormat(x)}\nY: ${opts.yAxisLabelFormat(y)}`,
+        createHints,
+        displaceHints,
+        renderHints,
+    },
     cursorPointer: 'pointer',
     cursorGrabbing: 'grabbing',
     bindEventHandlers: true,
@@ -94,12 +89,12 @@ class Chart {
 
     constructor(elCanvas, options = {}) {
 
-        this.options = options = { ...defaultOptions, ...options }
+        this.options = options = mergeObjects(defaultOptions, options)
         this.elCanvas = elCanvas
         this.ctx = elCanvas.getContext('2d')
         this.scale = vec2(options.xScale, options.yScale)
         this.translate = vec2(options.xOffset, options.yOffset)
-        this.poi = vec2(0, 0)
+        this.focusPoint = vec2(0, 0)
         this.datasets = []
 
         elCanvas.style.cursor = options.cursorPointer
@@ -144,13 +139,13 @@ class Chart {
                 )
                 this.move(delta)
                 this.repaint()
-            } else if (options.pointsOfInterestEnable && isInsideCanvas) {
+            } else if (isInsideCanvas) {
                 const r = vec2()
                 vec2subdiv(r, mouseState.pt, vec2(options.xCanvasStep, options.yCanvasStep), this.translate)
                 r[1] = -r[1]
                 vec2mul(r, r, vec2(options.xAxisStep, options.yAxisStep))
                 vec2div(r, r, this.scale)
-                this.computePointsOfInterest(r)
+                this.computeFocusPoints(r)
                 this.repaint()
             }
         }
@@ -176,7 +171,7 @@ class Chart {
         }
     }
 
-    computePointsOfInterest(p) {
+    computeFocusPoints(p) {
 
         this.datasets.forEach(dataset => {
             const points = dataset.points
@@ -188,12 +183,12 @@ class Chart {
                 const p2 = points[i1]
                 const t = (p[0] - p1[0]) / (p2[0] - p1[0])
                 vec2lerp(r, p1, p2, vec2(t, dataset.options.isStepped ? 0 : t))
-                dataset.poi = r
+                dataset.focusPoint = r
             } else {
-                dataset.poi = null
+                dataset.focusPoint = null
             }
         })
-        vec2copy(this.poi, p)
+        vec2copy(this.focusPoint, p)
     }
 
     bind() {
@@ -337,6 +332,7 @@ class Chart {
         const w = this.elCanvas.width
         const h = this.elCanvas.height
         const s = this.scale
+        const datasets = this.datasets
 
         if (w <= 0 || h <= 0 || s[0] === 0 || s[1] === 0) {
             return
@@ -401,23 +397,9 @@ class Chart {
         ctx.fillRect(o[0], 0, 1 * px, h)
         ctx.fillRect(0, o[1], w, 1 * px)
 
-        // draw axes for POI
-        ctx.fillStyle = opts.pointsOfInterestAxesColor
-        for (let i = 0, n = this.datasets.length; i < n; i ++) {
-            const dataset = this.datasets[i]
-            if (opts.pointsOfInterestEnable && opts.pointsOfInterestXAxisEnable && dataset.poi) {
-                transform(p, dataset.poi)
-                ctx.fillRect(0, p[1], w, 1 * px)
-            }
-        }
-        if (opts.pointsOfInterestEnable && opts.pointsOfInterestYAxisEnable) {
-            transform(p, this.poi)
-            ctx.fillRect(p[0], 0, 1 * px, h)
-        }
-
         // draw datasets
-        for (let i = 0, n = this.datasets.length; i < n; i ++) {
-            const dataset = this.datasets[i]
+        for (let i = 0, n = datasets.length; i < n; i ++) {
+            const dataset = datasets[i]
             const points = dataset.points
             const m = points.length
             if (m > 1) {
@@ -646,57 +628,22 @@ class Chart {
             }
         }
 
-        // draw POI labels
-        if (opts.pointsOfInterestEnable) {
-            const fs = opts.fontSize * px
-            ctx.font = `${fs}px/1 ${opts.fontFamily}`
-            for (let i = 0, n = this.datasets.length; i < n; i ++) {
-                const dataset = this.datasets[i]
-                if (opts.pointsOfInterestEnable && dataset.poi) {
-                    transform(p, dataset.poi)
-                    ctx.fillStyle = dataset.options.lineColor
-                    ctx.beginPath()
-                    ctx.arc(p[0], p[1], opts.pointsOfInterestRadius, 0, 2 * Math.PI, false)
-                    ctx.fill()
-                    const lines = opts.pointsOfInterestLabelFormat(dataset.poi[0], dataset.poi[1], dataset, opts).split('\n')
-                    let fullWidth = 0
-                    let fullHeight = 0
-                    let correction = 0
-                    for (let j = 0, n = lines.length; j < n; j ++) {
-                        const line = lines[j]
-                        const metrics = ctx.measureText(line)
-                        const width = metrics.width
-                        if (fullWidth < width)
-                            fullWidth = width
-                        fullHeight += opts.fontSize
-                        const ascent = -Math.abs(metrics.actualBoundingBoxAscent)
-                        const descent = Math.abs(metrics.actualBoundingBoxDescent)
-                        correction = opts.fontSize - (descent - ascent)
-                    }
-                    fullWidth += opts.pointsOfInterestLabelPaddingLeft + opts.pointsOfInterestLabelPaddingRight
-                    fullHeight += opts.pointsOfInterestLabelPaddingTop + opts.pointsOfInterestLabelPaddingBottom + correction
-                    let offsetX = p[0] + opts.pointsOfInterestLabelOffsetX
-                    let offsetY = p[1] + opts.pointsOfInterestLabelOffsetY - fullHeight / 2
-                    ctx.fillStyle = opts.pointsOfInterestLabelBackgroundColor
-                    ctx.fillRect(
-                        offsetX,
-                        offsetY,
-                        fullWidth,
-                        fullHeight
-                    )
-                    offsetX += opts.pointsOfInterestLabelPaddingLeft
-                    offsetY += opts.pointsOfInterestLabelPaddingTop
-                    ctx.fillStyle = opts.pointsOfInterestLabelColor
-                    for (let j = 0, n = lines.length; j < n; j ++) {
-                        ctx.fillText(
-                            lines[j],
-                            offsetX,
-                            offsetY + opts.fontSize
-                        )
-                        offsetY += opts.fontSize
-                    }
+        // draw hints
+        if (opts.hints) {
+            const { createHints, displaceHints, renderHints } = opts.hints
+            let hints = createHints(
+                this.focusPoint,
+                { width: w, height: h, pixelRatio: px },
+                datasets,
+                opts,
+                {
+                    transform,
+                    isIntersects,
+                    measureText: text => ctx.measureText(text)
                 }
-            }
+            )
+            hints = displaceHints(hints)
+            renderHints(ctx, hints)
         }
     }
 }
