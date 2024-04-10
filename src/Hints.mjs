@@ -53,14 +53,17 @@ function defaultHintsSettings() {
             offsetTop: 15,
             innerRadius: 0,
             outerRadius: 3
-        }
+        },
+        unitInvisibleHints: true,
+        maxNumIterations: 20
     }
 }
 
 const defaultSettings = defaultHintsSettings()
 
-function createHints(focusPoint, viewport, datasets, opts, helpers) {
+function createHints(ctx, focusPoint, viewport, datasets, opts, helpers) {
     // settings
+    const { fontFamily, fontSize } = opts
     const { hintText, settings: passedSettings } = opts.hints
     const settings = mergeObjects(defaultSettings, passedSettings)
     const {
@@ -72,8 +75,10 @@ function createHints(focusPoint, viewport, datasets, opts, helpers) {
     const { innerRadius, outerRadius } = focus.points
     // create hints
     const p = vec2()
-    const { transform, measureText } = helpers
+    const { transform } = helpers
     const list = []
+    const fs = fontSize * viewport.pixelRatio
+    ctx.font = `${fs}px/1 ${fontFamily}`
     for (let i = 0, n = datasets.length; i < n; i ++) {
         const dataset = datasets[i]
         const focusPoint = dataset.focusPoint
@@ -84,7 +89,7 @@ function createHints(focusPoint, viewport, datasets, opts, helpers) {
             let fullHeight = 0
             let correction = 0
             for (let j = 0, m = contents.length; j < m; j ++) {
-                const metrics = measureText(contents[j])
+                const metrics = ctx.measureText(contents[j])
                 const width = metrics.width
                 if (fullWidth < width)
                     fullWidth = width
@@ -125,6 +130,7 @@ function createHints(focusPoint, viewport, datasets, opts, helpers) {
     }
     transform(p, focusPoint)
     return {
+        ctx,
         focus: {
             origin: focusPoint,
             x: p[0],
@@ -136,8 +142,8 @@ function createHints(focusPoint, viewport, datasets, opts, helpers) {
         },
         settings: mergeObjects(settings, {
             font: {
-                family: opts.fontFamily,
-                size: opts.fontSize
+                family: fontFamily,
+                size: fontSize
             },
             borderRadius: borderRadius ? [
                 borderRadius.leftTop,
@@ -156,12 +162,16 @@ const displaceHints = hints => {
     const padding = settings.viewportPadding
     const viewport = {
         left: padding.left,
-        right: width - padding.left - padding.right,
+        right: width - padding.right,
         top: padding.top,
-        bottom: height - padding.top - padding.bottom
+        bottom: height - padding.bottom
     }
     let listNext = [ ...list ].sort((a, b) => a.focusPoints[a.focusPoints.length - 1].y - b.focusPoints[0].y)
-    for (let step = 0; step < 2; step ++) {
+    let isChanged = true
+    let numIterations = 0
+    while (isChanged) {
+        numIterations ++
+        isChanged = false
         for (let i = 0, n = listNext.length; i < n; i ++) {
             const a = listNext[i]
             if (a === null) {
@@ -186,9 +196,26 @@ const displaceHints = hints => {
                     a.focusPoints = a.focusPoints.concat(b.focusPoints)
                     a.marks = a.marks.concat(b.marks)
                     listNext[j] = null
+                    isChanged = true
                 }
             }
             listNext[i] = a
+        }
+        if (!settings.unitInvisibleHints) {
+            for (let i = 0, n = listNext.length; i < n; i ++) {
+                const a = listNext[i]
+                if (a === null) {
+                    continue
+                }
+                if (a.right < viewport.left
+                    || a.left > viewport.right
+                    || a.bottom < viewport.top
+                    || a.top > viewport.bottom)
+                {
+                    listNext[i] = null
+                    isChanged = true
+                }
+            }
         }
         listNext = listNext.filter(a => a)
         for (let i = 0, n = listNext.length; i < n; i ++) {
@@ -197,28 +224,36 @@ const displaceHints = hints => {
                 const delta = (viewport.left - a.left)
                 a.left += delta
                 a.right += delta
+                isChanged = true
             } else if (a.right > viewport.right) {
                 const delta = (a.right - viewport.right)
                 a.left -= delta
                 a.right -= delta
+                isChanged = true
             }
             if (a.top < viewport.top) {
                 const delta = (viewport.top - a.top)
                 a.top += delta
                 a.bottom += delta
+                isChanged = true
             } else if (a.bottom > viewport.bottom) {
                 const delta = (a.bottom - viewport.bottom)
                 a.top -= delta
                 a.bottom -= delta
+                isChanged = true
             }
+        }
+        if (listNext.length <= 1 || numIterations >= settings.maxNumIterations) {
+            break
         }
     }
     return { ...hints, list: listNext }
 }
 
-const renderHints = (ctx, hints) => {
+const renderHints = hints => {
     // settings
     const {
+        ctx,
         list,
         settings: {
             font,
@@ -286,7 +321,7 @@ const renderHints = (ctx, hints) => {
     const fs = font.size * pixelRatio
     ctx.font = `${fs}px/1 ${font.family}`
     for (let i = 0, n = list.length; i < n; i ++) {
-        let { left, top, right, bottom, texts, marks } = list[i]
+        const { left, top, right, bottom, texts, marks } = list[i]
         ctx.strokeStyle = border
         ctx.fillStyle = background
         if (borderRadius) {
@@ -299,16 +334,16 @@ const renderHints = (ctx, hints) => {
         }
         ctx.fillStyle = text
         for (let j = 0, m = texts.length; j < m; j ++) {
-            let { offsetLeft, offsetTop, contents } = texts[j]
-            offsetLeft += left
-            offsetTop += top
+            const { offsetLeft, offsetTop, contents } = texts[j]
+            let x = offsetLeft + left
+            let y = offsetTop + top
             for (let k = 0, l = contents.length; k < l; k ++) {
                 ctx.fillText(
                     contents[k],
-                    offsetLeft,
-                    offsetTop + font.size // TODO font.size or fs?
+                    x,
+                    y + font.size // TODO font.size or fs?
                 )
-                offsetTop += font.size // TODO font.size or fs?
+                y += font.size // TODO font.size or fs?
             }
         }
         for (let j = 0, m = marks.length; j < m; j ++) {

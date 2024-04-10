@@ -2,6 +2,7 @@ import { isZero, vec2, vec2copy, vec2add, vec2sub, vec2mul, vec2div, vec2muladd,
 import { findLess } from './BinarySearch.mjs'
 import TouchGestures from './TouchGestures.mjs'
 import { defaultHintsSettings, createHints, displaceHints, renderHints } from './Hints.mjs'
+import { defaultLegendsSettings, createLegends, renderLegends } from './Legends.mjs'
 import mergeObjects from './mergeObjects.mjs'
 
 function isIntersects(r1, r2) {
@@ -77,6 +78,12 @@ const defaultOptions = {
         createHints,
         displaceHints,
         renderHints,
+    },
+    legends: {
+        settings: defaultLegendsSettings(),
+        legendText: (dataset, opts) => `${dataset.legend}`,
+        createLegends,
+        renderLegends,
     },
     cursorPointer: 'pointer',
     cursorGrabbing: 'grabbing',
@@ -329,8 +336,8 @@ class Chart {
 
         const opts = this.options
         const ctx = this.ctx
-        const w = this.elCanvas.width
-        const h = this.elCanvas.height
+        let w = this.elCanvas.width
+        let h = this.elCanvas.height
         const s = this.scale
         const datasets = this.datasets
 
@@ -382,6 +389,40 @@ class Chart {
         }
         ctx.fillStyle = opts.backgroundColor
         ctx.fillRect(0, 0, w, h)
+
+        let clipPath = null
+
+        // draw legends
+        if (opts.legends) {
+            const { createLegends, renderLegends } = opts.legends
+            const legends = createLegends(
+                ctx,
+                {
+                    width: w,
+                    height: h,
+                    pixelRatio: px,
+                    clip(left, top, right, bottom) {
+                        w = right - left
+                        h = bottom - top
+                        clipPath = new Path2D()
+                        clipPath.rect(left, top, w, h)
+                    }
+                },
+                datasets,
+                opts,
+                {
+                    isIntersects,
+                    // measureText: text => ctx.measureText(text)
+                }
+            )
+            renderLegends(legends)
+        }
+
+        // clip
+        if (clipPath) {
+            ctx.save()
+            ctx.clip(clipPath)
+        }
 
         // draw grid
         ctx.fillStyle = opts.gridColor
@@ -632,6 +673,7 @@ class Chart {
         if (opts.hints) {
             const { createHints, displaceHints, renderHints } = opts.hints
             let hints = createHints(
+                ctx,
                 this.focusPoint,
                 { width: w, height: h, pixelRatio: px },
                 datasets,
@@ -639,11 +681,16 @@ class Chart {
                 {
                     transform,
                     isIntersects,
-                    measureText: text => ctx.measureText(text)
+                    // measureText: text => ctx.measureText(text)
                 }
             )
             hints = displaceHints(hints)
-            renderHints(ctx, hints)
+            renderHints(hints)
+        }
+
+        // unclip
+        if (clipPath) {
+            ctx.restore()
         }
     }
 }

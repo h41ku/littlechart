@@ -1,6 +1,6 @@
 class Dataset {
 
-    constructor(options = {}) {
+    constructor(legend = '', options = {}) { // TODO use mergeOptions
         if (!('lineColor' in options)) {
             const f = () => Math.round(Math.random() * 256)
             options.lineColor = `rgb(${f()},${f()},${f()})`
@@ -14,6 +14,7 @@ class Dataset {
         if (!('pointRadius' in options)) {
             options.pointRadius = 0
         }
+        this.legend = legend
         this.options = options
         this.points = []
     }

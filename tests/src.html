@@ -57,7 +57,7 @@ window.chart = chart
 window.mergeObjects = mergeObjects
 
 {
-    const dataset = new Dataset({
+    const dataset = new Dataset('Red dataset', {
         lineColor: 'rgb(255,0,0)',
         // lineWidth: 2,
         // pointRadius: 3,
@@ -71,7 +71,7 @@ window.mergeObjects = mergeObjects
 }
 
 {
-    const dataset = new Dataset({
+    const dataset = new Dataset('Green dataset', {
         lineColor: 'rgb(0,255,0)',
         isStepped: true
     })
@@ -84,7 +84,7 @@ window.mergeObjects = mergeObjects
 }
 
 {
-    const dataset = new Dataset({
+    const dataset = new Dataset('Blue dataset', {
         lineColor: 'rgb(0,0,255)',
         isStepped: true
     })
@@ -97,7 +97,7 @@ window.mergeObjects = mergeObjects
 }
 
 {
-    const dataset = new Dataset({
+    const dataset = new Dataset('Magenta dataset', {
         lineColor: 'rgb(255,0,255)'
     })
     let y = -2000
