@@ -54,6 +54,9 @@ function defaultHintsSettings() {
             innerRadius: 0,
             outerRadius: 3
         },
+        splitter: {
+            height: 5
+        },
         unitInvisibleHints: true,
         maxNumIterations: 20
     }
@@ -69,15 +72,29 @@ function createHints(ctx, focusPoint, viewport, datasets, opts, helpers) {
     const {
         focus,
         borderRadius,
-        padding,
-        mark
+        padding: paddingOrigin,
+        mark: markOrigin,
+        splitter: splitterOrigin
     } = settings
     const { innerRadius, outerRadius } = focus.points
     // create hints
     const p = vec2()
     const { transform } = helpers
     const list = []
-    const fs = fontSize * viewport.pixelRatio
+    const pixelRatio = viewport.pixelRatio
+    const mark = { ...markOrigin }
+    mark.offsetLeft *= pixelRatio
+    mark.offsetTop *= pixelRatio
+    mark.innerRadius *= pixelRatio
+    mark.outerRadius *= pixelRatio
+    const padding = { ...paddingOrigin }
+    padding.left *= pixelRatio
+    padding.top *= pixelRatio
+    padding.right *= pixelRatio
+    padding.bottom *= pixelRatio
+    const splitter = { ...splitterOrigin }
+    splitter.height *= pixelRatio
+    const fs = fontSize * pixelRatio
     ctx.font = `${fs}px/1 ${fontFamily}`
     for (let i = 0, n = datasets.length; i < n; i ++) {
         const dataset = datasets[i]
@@ -93,10 +110,10 @@ function createHints(ctx, focusPoint, viewport, datasets, opts, helpers) {
                 const width = metrics.width
                 if (fullWidth < width)
                     fullWidth = width
-                fullHeight += opts.fontSize
+                fullHeight += fs
                 const ascent = -Math.abs(metrics.actualBoundingBoxAscent)
                 const descent = Math.abs(metrics.actualBoundingBoxDescent)
-                correction = opts.fontSize - (descent - ascent) // TODO
+                correction = fs - (descent - ascent) // TODO
             }
             fullHeight += padding.top + padding.bottom + correction // TODO
             fullWidth += padding.left + padding.right
@@ -106,8 +123,8 @@ function createHints(ctx, focusPoint, viewport, datasets, opts, helpers) {
                 focusPoints: [{
                     x: p[0],
                     y: p[1],
-                    innerRadius: innerRadius(dataset),
-                    outerRadius: outerRadius(dataset),
+                    innerRadius: innerRadius(dataset) * pixelRatio,
+                    outerRadius: outerRadius(dataset) * pixelRatio,
                     dataset
                 }],
                 left: offsetX,
@@ -143,14 +160,15 @@ function createHints(ctx, focusPoint, viewport, datasets, opts, helpers) {
         settings: mergeObjects(settings, {
             font: {
                 family: fontFamily,
-                size: fontSize
+                size: fs
             },
             borderRadius: borderRadius ? [
-                borderRadius.leftTop,
-                borderRadius.rightTop,
-                borderRadius.rightBottom,
-                borderRadius.leftBottom
+                Math.round(borderRadius.leftTop * pixelRatio),
+                Math.round(borderRadius.rightTop * pixelRatio),
+                Math.round(borderRadius.rightBottom * pixelRatio),
+                Math.round(borderRadius.leftBottom * pixelRatio)
             ] : null,
+            splitter
         }),
         helpers,
         list
@@ -158,13 +176,13 @@ function createHints(ctx, focusPoint, viewport, datasets, opts, helpers) {
 }
 
 const displaceHints = hints => {
-    const { list, settings, viewport: { width, height }, helpers: { isIntersects } } = hints
-    const padding = settings.viewportPadding
+    const { list, settings, viewport: { width, height, pixelRatio }, helpers: { isIntersects } } = hints
+    const { viewportPadding: padding, splitter: { height: splitterHeight } } = settings
     const viewport = {
-        left: padding.left,
-        right: width - padding.right,
-        top: padding.top,
-        bottom: height - padding.bottom
+        left: padding.left * pixelRatio,
+        right: width - padding.right * pixelRatio,
+        top: padding.top * pixelRatio,
+        bottom: height - padding.bottom * pixelRatio
     }
     let listNext = [ ...list ].sort((a, b) => a.focusPoints[a.focusPoints.length - 1].y - b.focusPoints[0].y)
     let isChanged = true
@@ -183,7 +201,8 @@ const displaceHints = hints => {
                     continue
                 }
                 if (isIntersects(a, b)) {
-                    const delta = a.bottom - a.top - a.padding.bottom - b.padding.top - b.padding.bottom
+                    //const delta = a.bottom - a.top - a.padding.bottom - b.padding.top - b.padding.bottom //+ splitterHeight
+                    const delta = a.bottom - a.top - a.padding.bottom - b.padding.top - a.correction + splitterHeight
                     for (let k = 0, m = b.texts.length; k < m; k ++) {
                         b.texts[k].offsetTop += delta
                     }
@@ -191,7 +210,7 @@ const displaceHints = hints => {
                         b.marks[k].offsetTop += delta
                     }
                     a.right = Math.max(a.right, a.left + (b.right - b.left))
-                    a.bottom += (b.bottom - b.top - a.padding.bottom - b.padding.top - a.correction)
+                    a.bottom += (b.bottom - b.top - a.padding.bottom - b.padding.top - a.correction) + splitterHeight
                     a.texts = a.texts.concat(b.texts)
                     a.focusPoints = a.focusPoints.concat(b.focusPoints)
                     a.marks = a.marks.concat(b.marks)
@@ -264,6 +283,17 @@ const renderHints = hints => {
         },
         viewport: { width, height, pixelRatio, backgroundColor }
     } = hints
+    // round
+    for (let i = 0, n = list.length; i < n; i ++) {
+        const item = list[i]
+        const { left, top, right, bottom } = item
+        item.rect = {
+            left: Math.round(left),
+            top: Math.round(top),
+            width: Math.round(right - left),
+            height: Math.round(bottom - top),
+        }
+    }
     // draw focus axes
     if (axes.y) {
         const { color, lineWidth } = axes.y
@@ -272,14 +302,14 @@ const renderHints = hints => {
             const { focusPoints } = list[i]
             for (let j = 0, m = focusPoints.length; j < m; j ++) {
                 const { y } = focusPoints[j]
-                ctx.fillRect(0, y, width, lineWidth * pixelRatio)
+                ctx.fillRect(0, y, width, Math.round(lineWidth * pixelRatio))
             }
         }
     }
     if (axes.x) {
         const { color, lineWidth } = axes.x
         ctx.fillStyle = color
-        ctx.fillRect(hints.focus.x, 0, lineWidth * pixelRatio, height)
+        ctx.fillRect(hints.focus.x, 0, Math.round(lineWidth * pixelRatio), height)
     }
     // draw shadows
     if (shadow) {
@@ -290,13 +320,18 @@ const renderHints = hints => {
         ctx.shadowOffsetY = offsetY
         ctx.shadowBlur = blur
         for (let i = 0, n = list.length; i < n; i ++) {
-            const { left, top, right, bottom } = list[i]
+            const { left, top, width, height } = list[i].rect
             if (borderRadius) {
                 ctx.beginPath()
-                ctx.roundRect(left, top, right - left, bottom - top, borderRadius)
+                ctx.roundRect(
+                    left, top, width, height,
+                    borderRadius
+                )
                 ctx.fill()
             } else {
-                ctx.fillRect(left, top, right - left, bottom - top)
+                ctx.fillRect(
+                    left, top, width, height
+                )
             }
         }
         ctx.shadowColor = 'transparent'
@@ -305,58 +340,65 @@ const renderHints = hints => {
     for (let i = 0, n = list.length; i < n; i ++) {
         const { focusPoints } = list[i]
         for (let j = 0, m = focusPoints.length; j < m; j ++) {
-            const { x, y, innerRadius, outerRadius, dataset: { options: { lineColor } } } = focusPoints[j]
+            const { x: xOrigin, y: yOrigin, innerRadius, outerRadius, dataset: { options: { lineColor } } } = focusPoints[j]
+            const x = Math.round(xOrigin)
+            const y = Math.round(yOrigin)
             ctx.fillStyle = lineColor.toString()
             ctx.beginPath()
-            ctx.arc(x, y, outerRadius * pixelRatio, 0, 2 * Math.PI, false)
+            ctx.arc(x, y, Math.round(outerRadius), 0, 2 * Math.PI, false)
             ctx.fill()
             ctx.fillStyle = backgroundColor
             ctx.beginPath()
-            ctx.arc(x, y, innerRadius * pixelRatio, 0, 2 * Math.PI, false)
+            ctx.arc(x, y, Math.round(innerRadius), 0, 2 * Math.PI, false)
             ctx.fill()
         }
     }
     // draw hints
     const { border, background, text } = color
-    const fs = font.size * pixelRatio
-    ctx.font = `${fs}px/1 ${font.family}`
+    const fs = font.size
+    ctx.font = `${Math.round(fs)}px/1 ${font.family}`
     for (let i = 0, n = list.length; i < n; i ++) {
-        const { left, top, right, bottom, texts, marks } = list[i]
+        const { rect: { left, top, width, height }, texts, marks } = list[i]
         ctx.strokeStyle = border
         ctx.fillStyle = background
         if (borderRadius) {
             ctx.beginPath()
-            ctx.roundRect(left, top, right - left, bottom - top, borderRadius)
+            ctx.roundRect(
+                left, top, width, height,
+                borderRadius
+            )
             ctx.fill()
             ctx.stroke()
         } else {
-            ctx.fillRect(left, top, right - left, bottom - top)
+            ctx.fillRect(
+                left, top, width, height
+            )
         }
         ctx.fillStyle = text
         for (let j = 0, m = texts.length; j < m; j ++) {
             const { offsetLeft, offsetTop, contents } = texts[j]
-            let x = offsetLeft + left
+            const x = Math.round(offsetLeft + left)
             let y = offsetTop + top
             for (let k = 0, l = contents.length; k < l; k ++) {
                 ctx.fillText(
                     contents[k],
                     x,
-                    y + font.size // TODO font.size or fs?
+                    Math.round(y + fs)
                 )
-                y += font.size // TODO font.size or fs?
+                y += fs
             }
         }
         for (let j = 0, m = marks.length; j < m; j ++) {
             const { offsetLeft, offsetTop, innerRadius, outerRadius, dataset: { options: { lineColor } } } = marks[j]
-            const x = offsetLeft + left
-            const y = offsetTop + top
+            const x = Math.round(offsetLeft + left)
+            const y = Math.round(offsetTop + top)
             ctx.fillStyle = lineColor.toString()
             ctx.beginPath()
-            ctx.arc(x, y, outerRadius * pixelRatio, 0, 2 * Math.PI, false)
+            ctx.arc(x, y, outerRadius, 0, 2 * Math.PI, false)
             ctx.fill()
             ctx.fillStyle = backgroundColor
             ctx.beginPath()
-            ctx.arc(x, y, innerRadius * pixelRatio, 0, 2 * Math.PI, false)
+            ctx.arc(x, y, innerRadius, 0, 2 * Math.PI, false)
             ctx.fill()
         }
     }

@@ -34,30 +34,46 @@ function createLegends(ctx, viewport, datasets, opts) {
     // settings
     const { legendText, settings: passedSettings } = opts.legends
     const settings = mergeObjects(defaultSettings, passedSettings)
-    const { itemPadding, padding, mark } = settings
+    const { itemPadding: itemPaddingOrigin, padding: paddingOrigin, mark: markOrigin } = settings
     const { fontFamily, fontSize } = opts
     // create legends
     let list = []
     let maxWidth = 0
     let correction = 0
-    const fs = fontSize * viewport.pixelRatio
+    const pixelRatio = viewport.pixelRatio
+    const fs = fontSize * pixelRatio
+    const mark = { ...markOrigin }
+    mark.offsetLeft *= pixelRatio
+    mark.offsetTop *= pixelRatio
+    mark.innerRadius *= pixelRatio
+    mark.outerRadius *= pixelRatio
+    const padding = { ...paddingOrigin }
+    padding.left *= pixelRatio
+    padding.top *= pixelRatio
+    padding.right *= pixelRatio
+    padding.bottom *= pixelRatio
+    const itemPadding = { ...itemPaddingOrigin }
+    itemPadding.left *= pixelRatio
+    itemPadding.top *= pixelRatio
+    itemPadding.right *= pixelRatio
+    itemPadding.bottom *= pixelRatio
     ctx.font = `${fs}px/1 ${fontFamily}`
     for (let i = 0, n = datasets.length; i < n; i ++) {
         const dataset = datasets[i]
         const content = legendText(dataset, opts)
         if (content) {
             const metrics = ctx.measureText(content)
-            const width = metrics.width + itemPadding.left + itemPadding.right
+            const width = metrics.width + itemPadding.left + itemPadding.right * pixelRatio
             const ascent = -Math.abs(metrics.actualBoundingBoxAscent)
             const descent = Math.abs(metrics.actualBoundingBoxDescent)
-            correction = Math.max(correction, opts.fontSize - (descent - ascent)) // TODO
+            correction = Math.max(correction, fs - (descent - ascent)) // TODO
             list.push({
                 text: {
                     content,
                     offsetLeft: itemPadding.left,
                     offsetTop: itemPadding.top,
                 },
-                mark: { ...mark },
+                mark,
                 dataset,
                 width,
                 left: 0,
@@ -75,7 +91,7 @@ function createLegends(ctx, viewport, datasets, opts) {
 // const numColumns = 2
     let maxColumnsUsed = 0
     let maxRowsUsed = 0
-    const rowHeight = fontSize + itemPadding.top + itemPadding.bottom + correction
+    const rowHeight = fs + itemPadding.top + itemPadding.bottom + correction
     for (let i = 0, n = list.length; i < n; i ++) {
         const item = list[i]
         const columnIndex = i % numColumns
@@ -116,7 +132,7 @@ function createLegends(ctx, viewport, datasets, opts) {
         settings: mergeObjects(settings, {
             font: {
                 family: fontFamily,
-                size: fontSize
+                size: fs
             }
         }),
         list
@@ -133,19 +149,33 @@ function renderLegends(legends) {
         viewport: { pixelRatio, backgroundColor },
         list
     } = legends
+    // variables
     // draw area
     if (color.background) {
-        const { left, top, right, bottom } = area
+        const left = Math.round(area.left)
+        const top = Math.round(area.top)
+        const right = Math.round(area.right)
+        const bottom = Math.round(area.bottom)    
         ctx.fillStyle = color.background
-        ctx.fillRect(left, top, right - left, bottom - top)
+        ctx.fillRect(
+            left,
+            top,
+            right - left,
+            bottom - top
+        )
         if (color.border) {
             ctx.fillStyle = color.border
-            ctx.fillRect(left, top, right - left, 1 * pixelRatio)
+            ctx.fillRect(
+                left,
+                top,
+                right - left,
+                Math.round(1 * pixelRatio)
+            )
         }
     }
     // draw legends
-    const fs = font.size * pixelRatio
-    ctx.font = `${fs}px/1 ${font.family}`
+    const fs = font.size
+    ctx.font = `${Math.round(fs)}px/1 ${font.family}`
     for (let i = 0, n = list.length; i < n; i ++) {
         let { left, top, text, mark, dataset: { options: { lineColor } } } = list[i]
 // ctx.fillStyle = 'rgba(255,0,0,0.1)'
@@ -157,21 +187,21 @@ function renderLegends(legends) {
             offsetTop += top
             ctx.fillText(
                 content,
-                offsetLeft,
-                offsetTop + font.size
+                Math.round(offsetLeft),
+                Math.round(offsetTop + font.size)
             )
         }
         {
             const { offsetLeft, offsetTop, innerRadius, outerRadius } = mark
-            const x = offsetLeft + left
-            const y = offsetTop + top
+            const x = Math.round(offsetLeft + left)
+            const y = Math.round(offsetTop + top)
             ctx.fillStyle = lineColor.toString()
             ctx.beginPath()
-            ctx.arc(x, y, outerRadius * pixelRatio, 0, 2 * Math.PI, false)
+            ctx.arc(x, y, Math.round(outerRadius), 0, 2 * Math.PI, false)
             ctx.fill()
             ctx.fillStyle = backgroundColor
             ctx.beginPath()
-            ctx.arc(x, y, innerRadius * pixelRatio, 0, 2 * Math.PI, false)
+            ctx.arc(x, y, Math.round(innerRadius), 0, 2 * Math.PI, false)
             ctx.fill()
         }
     }
