@@ -181,13 +181,13 @@ class Chart {
     computeFocusPoints(p) {
 
         this.datasets.forEach(dataset => {
-            const points = dataset.points
-            const i0 = findLess(i => points[i][0], 0, points.length - 1, p[0])
+            const { extract, size } = dataset
+            const i0 = findLess(i => extract(i)[0], 0, size - 1, p[0])
             const i1 = i0 + 1
-            if (i0 >= 0 && i1 < points.length) {
+            if (i0 >= 0 && i1 < size) {
                 const r = vec2()
-                const p1 = points[i0]
-                const p2 = points[i1]
+                const p1 = extract(i0)
+                const p2 = extract(i1)
                 const t = (p[0] - p1[0]) / (p2[0] - p1[0])
                 vec2lerp(r, p1, p2, vec2(t, dataset.options.isStepped ? 0 : t))
                 dataset.focusPoint = r
@@ -441,43 +441,110 @@ class Chart {
         // draw datasets
         for (let i = 0, n = datasets.length; i < n; i ++) {
             const dataset = datasets[i]
-            const points = dataset.points
-            const m = points.length
-            if (m > 1) {
+            const { extract, size, tree } = dataset
+            if (size > 1) {
                 ctx.strokeStyle = dataset.options.lineColor
                 ctx.lineWidth = dataset.options.lineWidth * px
-                ctx.beginPath()
-                transform(p, points[0])
-                ctx.moveTo(p[0], p[1])
-                if (dataset.options.isStepped) {
-                    y = p[1]
-                    for (let j = 1; j < m; j ++) {
-                        transform(p, points[j])
-                        ctx.lineTo(p[0], y)
-                        ctx.lineTo(p[0], p[1])
-                        y = p[1]
-                    }
-                } else {
-                    for (let j = 1; j < m; j ++) {
-                        transform(p, points[j])
-                        ctx.lineTo(p[0], p[1])
+
+                const p0 = vec2()
+                const p1 = vec2()
+
+                const renderNode = (ctx, node, f) => {
+                    transform(p1, [ node.maxX, node.maxY ])
+                    if (p1[0] < 0) { return }
+                    transform(p0, [ node.minX, node.minY ])
+                    if (p0[0] > w) { return }
+                    const x0 = Math.round(p0[0])
+                    const x1 = Math.round(p1[0])
+                    if (x0 === x1) {
+                        ctx.beginPath()
+                        ctx.moveTo(x0, p0[1])
+                        ctx.lineTo(x1, p1[1])
+                        ctx.stroke()
+                    } else if (node.left && node.right) {
+                        renderNode(ctx, node.left, f)
+                        renderNode(ctx, node.right, f)
+                    } else {
+                        ctx.beginPath()
+                        transform(p0, f(node.s))
+                        ctx.moveTo(p0[0], p0[1])
+                        for (let j = node.s + 1; j <= node.e; j ++) {
+                            transform(p0, f(j))
+                            ctx.lineTo(p0[0], p0[1])
+                        }
+                        ctx.stroke()
                     }
                 }
-                ctx.stroke()
-                if (dataset.options.pointRadius > 0) {
-                    ctx.fillStyle = dataset.options.lineColor
-                    const r = dataset.options.pointRadius
-                    const PI2 = 2 * Math.PI
-                    transform(p, points[0])
-                    ctx.beginPath()
-                    ctx.arc(p[0], p[1], r, 0, PI2, false)
-                    ctx.fill()
-                    for (let j = 1; j < m; j ++) {
-                        transform(p, points[j])
+
+                const renderNodeStepped = (ctx, node, f) => {
+                    transform(p1, [ node.maxX, node.maxY ])
+                    if (p1[0] < 0) { return }
+                    transform(p0, [ node.minX, node.minY ])
+                    if (p0[0] > w) { return }
+                    const x0 = Math.round(p0[0])
+                    const x1 = Math.round(p1[0])
+                    if (x0 === x1) {
                         ctx.beginPath()
-                        ctx.arc(p[0], p[1], r, 0, PI2, false)
-                        ctx.fill()
+                        ctx.moveTo(x0, p0[1])
+                        ctx.lineTo(x1, p1[1])
+                        ctx.stroke()
+                    } else if (node.left && node.right) {
+                        renderNodeStepped(ctx, node.left, f)
+                        renderNodeStepped(ctx, node.right, f)
+                    } else {
+                        ctx.beginPath()
+                        transform(p0, f(node.s))
+                        ctx.moveTo(p0[0], p0[1])
+                        let y = p0[1]
+                        for (let j = node.s + 1; j <= node.e; j ++) {
+                            transform(p0, f(j))
+                            ctx.lineTo(p0[0], y)
+                            ctx.lineTo(p0[0], p0[1])
+                            y = p0[1]
+                        }
+                        ctx.stroke()
                     }
+                }
+
+                const PI2 = 2 * Math.PI
+
+                const renderNodePoints = (ctx, node, f, r) => {
+                    transform(p1, [ node.maxX, node.maxY ])
+                    if (p1[0] < 0) { return }
+                    transform(p0, [ node.minX, node.minY ])
+                    if (p0[0] > w) { return }
+                    const x0 = Math.round(p0[0])
+                    const x1 = Math.round(p1[0])
+                    if (x0 === x1) {
+                        ctx.beginPath()
+                        ctx.arc(x0, p0[1], r, 0, PI2, false)
+                        ctx.fill()
+                        ctx.beginPath()
+                        ctx.arc(x1, p1[1], r, 0, PI2, false)
+                        ctx.stroke()
+                    } else if (node.left && node.right) {
+                        renderNodePoints(ctx, node.left, f, r)
+                        renderNodePoints(ctx, node.right, f, r)
+                    } else {
+                        for (let j = node.s; j <= node.e; j ++) {
+                            transform(p0, f(j))
+                            ctx.beginPath()
+                            ctx.arc(p0[0], p0[1], r, 0, PI2, false)
+                            ctx.fill()
+                        }
+                        ctx.stroke()
+                    }
+                }
+
+                if (dataset.options.isStepped) {
+                    renderNodeStepped(ctx, tree, extract)
+                } else {
+                    renderNode(ctx, tree, extract)
+                }
+                const r = dataset.options.pointRadius
+                if (r > 0) {
+                    ctx.fillStyle = dataset.options.lineColor
+                    renderNodePoints(ctx, tree, extract, r)
                 }
             }
         }

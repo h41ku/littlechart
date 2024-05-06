@@ -1,3 +1,39 @@
+const buildTree = (f, s, e, T) => {
+    const isLeaf = (e - s) <= T
+    let [ minX, minY ] = f(s)
+    let [ maxX, maxY ] = f(e)
+    let left
+    let right
+    if (isLeaf) {
+        for (let i = s; i <= e; i ++) {
+            const y = f(i)[1]
+            if (minY > y) {
+                minY = y
+            }
+            if (maxY < y) {
+                maxY = y
+            }
+        }
+    } else {
+        const h = Math.floor((e - s) / 2)
+        const m = s + h
+        left = buildTree(f, s, m, T)
+        right = buildTree(f, m, e, T)
+        minY = Math.min(left.minY, right.minY)
+        maxY = Math.max(left.maxY, right.maxY)
+    }
+    return {
+        s,
+        e,
+        minX,
+        minY,
+        maxX,
+        maxY,
+        left,
+        right
+    }
+}
+
 class Dataset {
 
     constructor(legend = '', options = {}) { // TODO use mergeOptions
@@ -16,16 +52,22 @@ class Dataset {
         }
         this.legend = legend
         this.options = options
-        this.points = []
     }
 
-    getBoundingRect() {
+    compile(extract, size, T = 100) {
+        this.extract = extract
+        this.size = size
+        this.tree = buildTree(extract, 0, size - 1, T)
+    }
+
+    getBoundingRect() { // TODO use tree
         let minX = null
         let maxX = null
         let minY = null
         let maxY = null
-        for (let i = 0, points = this.points, n = points.length; i < n; i ++) {
-            const [ x, y ] = points[i]
+        const { extract, size } = this
+        for (let i = 0; i < size; i ++) {
+            const [ x, y ] = extract(i)
             if (minX === null || minX > x) {
                 minX = x
             }

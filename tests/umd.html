@@ -50,79 +50,99 @@ const chart = new Chart(document.querySelector('canvas'), {
     invertMouseWheel: true
 })
 
+window.chart = chart
+
 {
-    const dataset = new Dataset({
-        lineColor: 'rgb(255,0,0)'
+    const dataset = new Dataset('Red dataset', {
+        lineColor: 'rgb(255,0,0)',
+        // lineWidth: 2,
+        // pointRadius: 4,
+        // isStepped: true,
     })
-    const T = 150, MIN = -100, MAX = 100
-    for (let x = -50000; x <= 50000; x ++) {
-        const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
-        dataset.points.push([x, y])
+    const T = 150,
+        MIN_X = -5000000, MAX_X = 5000000,
+        MIN_Y = -100, MAX_Y = 100,
+        M = 1000000,
+        N = MAX_X - MIN_X //+ 1
+
+    const xsBlocks = []
+    const ysBlocks = []
+    let xs
+    let ys
+    let j
+    for (let x = MIN_X, i = 0; x <= MAX_X; x ++, i ++) {
+        if (i % M === 0) {
+            if (i > 0) {
+                xsBlocks.push(xs)
+                ysBlocks.push(ys)
+            }
+            const m = Math.min(M, N - i)
+            xs = new Int32Array(m)
+            ys = new Float64Array(m)
+        }
+        const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX_Y - MIN_Y) + MIN_Y
+        j = i % M
+        xs[j] = x
+        ys[j] = y
     }
+    if (j > 0) {
+        xsBlocks.push(xs)
+        ysBlocks.push(ys)
+    }
+    const f = i => {
+        const k = Math.floor(i / M)
+        const j = i - k * M
+        return [ xsBlocks[k][j], ysBlocks[k][j] ]
+    }
+    dataset.compile(f, N)
     chart.datasets.push(dataset)
 }
 
 {
-    const dataset = new Dataset({
+    const dataset = new Dataset('Green dataset', {
         lineColor: 'rgb(0,255,0)',
         isStepped: true
     })
     const T = 150, MIN = -50, MAX = 50
+    const points = []
     for (let x = -6000; x <= -4000; x ++) {
         const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
-        dataset.points.push([x, y])
+        points.push([x, y])
     }
+    dataset.compile(i => points[i], points.length)
     chart.datasets.push(dataset)
 }
 
 {
-    const dataset = new Dataset({
+    const dataset = new Dataset('Blue dataset', {
         lineColor: 'rgb(0,0,255)',
         isStepped: true
     })
     const T = 150, MIN = -10000, MAX = 10000
+    const points = []
     for (let x = 2000; x <= 4000; x ++) {
         const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
-        dataset.points.push([x, y])
+        points.push([x, y])
     }
+    dataset.compile(i => points[i], points.length)
     chart.datasets.push(dataset)
 }
 
 {
-    const dataset = new Dataset({
+    const dataset = new Dataset('Magenta dataset', {
         lineColor: 'rgb(255,0,255)'
     })
     let y = -2000
+    const points = []
     for (let x = 200; x <= 1000; x += 5) {
         y += 1 + 2 * Math.random()
-        dataset.points.push([x, y])
+        points.push([x, y])
     }
+    dataset.compile(i => points[i], points.length)
     chart.datasets.push(dataset)
 }
 
-// {
-//     const dataset = new Dataset({
-//         lineColor: 'orange'
-//     })
-//     const T = 150, MIN = -100, MAX = 100
-//     let x
-//     for (x = -300; x <= 300; x ++) {
-//         const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
-//         dataset.points.push([x, y])
-//     }
-//     chart.datasets.push(dataset)
-//     setInterval(() => {
-//         const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
-//         dataset.points.push([x, y])
-//         chart.fitView(new DOMRect(x - 2 * T, MIN, 2 * T, MAX - MIN), false)
-//         chart.repaint()
-//         x ++
-//     }, 50)
-// }
-
 chart.repaint()
-
-window.chart = chart
 
 </script>
 </boby>
