@@ -159,9 +159,13 @@ class Chart {
         this.listeners[TouchGestures.EVT_NAME_POINTERZOOM] = evt => {
             evt.detail.originalEvent.preventDefault()
             const deltaScale = evt.detail.deltaScale
+            const doScaleX = options.userScaleX === true
+                || (typeof options.userScaleX === 'function' && options.userScaleX(evt))
+            const doScaleY = options.userScaleY === true
+                || (typeof options.userScaleY === 'function' && options.userScaleY(evt))
             const delta = vec2(
-                options.userScaleX ? deltaScale : 0,
-                options.userScaleY ? deltaScale : 0
+                doScaleX ? deltaScale : 0,
+                doScaleY ? deltaScale : 0
             )
             pointFromMouseEvent(mouseState.pt, evt.detail)
             this.zoomAroundPoint(delta, mouseState.pt)
