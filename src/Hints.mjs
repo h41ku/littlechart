@@ -101,7 +101,7 @@ function createHints(ctx, focusPoint, viewport, datasets, opts, helpers) {
         const focusPoint = dataset.focusPoint
         if (focusPoint) {
             transform(p, focusPoint)
-            const contents = hintText(focusPoint[0], focusPoint[1], dataset, opts).split('\n')
+            const contents = hintText(focusPoint[0], focusPoint[1], dataset, opts, focusPoint.source).split('\n')
             let fullWidth = 0
             let fullHeight = 0
             let correction = 0

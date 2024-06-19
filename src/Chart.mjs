@@ -1,4 +1,4 @@
-import { isZero, vec2, vec2copy, vec2add, vec2sub, vec2mul, vec2div, vec2muladd, vec2neglerp, vec2subdiv, vec2lerp } from './vec2.mjs'
+import { isZero, vec2, vec2copy, vec2add, vec2sub, vec2mul, vec2div, vec2muladd, vec2neglerp, vec2subdiv, vec2lerp, vec2clone } from './vec2.mjs'
 import { findLess } from './BinarySearch.mjs'
 import TouchGestures from './TouchGestures.mjs'
 import { defaultHintsSettings, createHints, displaceHints, renderHints } from './Hints.mjs'
@@ -74,7 +74,7 @@ const defaultOptions = {
     clearFrame: false,
     hints: {
         settings: defaultHintsSettings(),
-        hintText: (x, y, dataset, opts) => `X: ${opts.xAxisLabelFormat(x)}\nY: ${opts.yAxisLabelFormat(y)}`,
+        hintText: (x, y, dataset, opts, pointSource) => `X: ${opts.xAxisLabelFormat(x)}\nY: ${opts.yAxisLabelFormat(y)}`,
         createHints,
         displaceHints,
         renderHints,
@@ -89,7 +89,8 @@ const defaultOptions = {
     cursorGrabbing: 'grabbing',
     bindEventHandlers: true,
     invertMouseWheel: false,
-    mouseWheelStep: 0.1
+    mouseWheelStep: 0.1,
+    afterRepaint: null
 }
 
 class Chart {
@@ -103,6 +104,7 @@ class Chart {
         this.translate = vec2(options.xOffset, options.yOffset)
         this.focusPoint = vec2(0, 0)
         this.datasets = []
+        this.currentXBounds = vec2()
 
         elCanvas.style.cursor = options.cursorPointer
 
@@ -185,15 +187,18 @@ class Chart {
     computeFocusPoints(p) {
 
         this.datasets.forEach(dataset => {
-            const { extract, size } = dataset
-            const i0 = findLess(i => extract(i)[0], 0, size - 1, p[0])
+            const { source } = dataset
+            const length = source.length
+            const i0 = findLess(i => source.at(i)[0], 0, length - 1, p[0])
             const i1 = i0 + 1
-            if (i0 >= 0 && i1 < size) {
+            if (i0 >= 0 && i1 < length) {
                 const r = vec2()
-                const p1 = extract(i0)
-                const p2 = extract(i1)
+                const p1 = source.at(i0)
+                const p2 = source.at(i1)
                 const t = (p[0] - p1[0]) / (p2[0] - p1[0])
-                vec2lerp(r, p1, p2, vec2(t, dataset.options.isStepped ? 0 : t))
+                const s = vec2(t, dataset.options.isStepped ? 0 : t)
+                vec2lerp(r, p1, p2, s)
+                r.source = { i0, i1, s }
                 dataset.focusPoint = r
             } else {
                 dataset.focusPoint = null
@@ -230,6 +235,11 @@ class Chart {
         this.touchGestures.disableMouseGestures()
 
         this.isListening = false
+    }
+
+    getViewportXBounds() {
+
+        return vec2clone(this.currentXBounds)
     }
 
     fitView(boundingRect, keepAspectRatio = true) { 
@@ -284,31 +294,35 @@ class Chart {
         this.repaint()
     }
 
-    getBoundingRect(initialMinX = null, initialMinY = null, initialMaxX = null, initialMaxY = null) {
+    getExtrems(initialMinX = null, initialMinY = null, initialMaxX = null, initialMaxY = null) {
 
         let minX = initialMinX
         let maxX = initialMaxX
         let minY = initialMinY
         let maxY = initialMaxY
 
-        for (let j = 0, m = this.datasets.length; j < m; j ++) {
-            const dataset = this.datasets[j]
-            for (let i = 0, points = dataset.points, n = points.length; i < n; i ++) {
-                const [ x, y ] = points[i]
-                if (minX === null || minX > x) {
-                    minX = x
-                }
-                if (maxX === null || maxX < x) {
-                    maxX = x
-                }
-                if (minY === null || minY > y) {
-                    minY = y
-                }
-                if (maxY === null || maxY < y) {
-                    maxY = y
-                }
+        this.datasets.forEach(dataset => {
+            const extrems = dataset.getExtrems()
+            if (minX === null || minX > extrems.minX) {
+                minX = extrems.minX
             }
-        }
+            if (maxX === null || maxX < extrems.maxX) {
+                maxX = extrems.maxX
+            }
+            if (minY === null || minY > extrems.minY) {
+                minY = extrems.minY
+            }
+            if (maxY === null || maxY < extrems.maxY) {
+                maxY = extrems.maxY
+            }
+        })
+
+        return { minX, minY, maxX, maxY }
+    }
+
+    getBoundingRect(initialMinX = null, initialMinY = null, initialMaxX = null, initialMaxY = null) { // DEPRECATED
+
+        const { minX, minY, maxX, maxY } = this.getExtrems()
 
         const rect = new DOMRect(minX, minY, maxX - minX, maxY - minY)
         rect.minX = minX
@@ -445,15 +459,16 @@ class Chart {
         // draw datasets
         for (let i = 0, n = datasets.length; i < n; i ++) {
             const dataset = datasets[i]
-            const { extract, size, tree } = dataset
-            if (size > 1) {
+            const { source, tree } = dataset
+
+            if (source.length > 1) {
                 ctx.strokeStyle = dataset.options.lineColor
                 ctx.lineWidth = dataset.options.lineWidth * px
 
                 const p0 = vec2()
                 const p1 = vec2()
 
-                const renderNode = (ctx, node, f) => {
+                const renderNode = (ctx, node, source) => {
                     transform(p1, [ node.maxX, node.maxY ])
                     if (p1[0] < 0) { return }
                     transform(p0, [ node.minX, node.minY ])
@@ -466,21 +481,21 @@ class Chart {
                         ctx.lineTo(x1, p1[1])
                         ctx.stroke()
                     } else if (node.left && node.right) {
-                        renderNode(ctx, node.left, f)
-                        renderNode(ctx, node.right, f)
+                        renderNode(ctx, node.left, source)
+                        renderNode(ctx, node.right, source)
                     } else {
                         ctx.beginPath()
-                        transform(p0, f(node.s))
+                        transform(p0, source.at(node.s))
                         ctx.moveTo(p0[0], p0[1])
-                        for (let j = node.s + 1; j <= node.e; j ++) {
-                            transform(p0, f(j))
+                        for (let j = node.s + 1; j <= node.e; j ++) { // TODO use source.forEach
+                            transform(p0, source.at(j))
                             ctx.lineTo(p0[0], p0[1])
                         }
                         ctx.stroke()
                     }
                 }
 
-                const renderNodeStepped = (ctx, node, f) => {
+                const renderNodeStepped = (ctx, node, source) => {
                     transform(p1, [ node.maxX, node.maxY ])
                     if (p1[0] < 0) { return }
                     transform(p0, [ node.minX, node.minY ])
@@ -493,15 +508,15 @@ class Chart {
                         ctx.lineTo(x1, p1[1])
                         ctx.stroke()
                     } else if (node.left && node.right) {
-                        renderNodeStepped(ctx, node.left, f)
-                        renderNodeStepped(ctx, node.right, f)
+                        renderNodeStepped(ctx, node.left, source)
+                        renderNodeStepped(ctx, node.right, source)
                     } else {
                         ctx.beginPath()
-                        transform(p0, f(node.s))
+                        transform(p0, source.at(node.s))
                         ctx.moveTo(p0[0], p0[1])
                         let y = p0[1]
-                        for (let j = node.s + 1; j <= node.e; j ++) {
-                            transform(p0, f(j))
+                        for (let j = node.s + 1; j <= node.e; j ++) { // TODO use source.forEach
+                            transform(p0, source.at(j))
                             ctx.lineTo(p0[0], y)
                             ctx.lineTo(p0[0], p0[1])
                             y = p0[1]
@@ -512,7 +527,7 @@ class Chart {
 
                 const PI2 = 2 * Math.PI
 
-                const renderNodePoints = (ctx, node, f, r) => {
+                const renderNodePoints = (ctx, node, source, r) => {
                     transform(p1, [ node.maxX, node.maxY ])
                     if (p1[0] < 0) { return }
                     transform(p0, [ node.minX, node.minY ])
@@ -527,11 +542,11 @@ class Chart {
                         ctx.arc(x1, p1[1], r, 0, PI2, false)
                         ctx.stroke()
                     } else if (node.left && node.right) {
-                        renderNodePoints(ctx, node.left, f, r)
-                        renderNodePoints(ctx, node.right, f, r)
+                        renderNodePoints(ctx, node.left, source, r)
+                        renderNodePoints(ctx, node.right, source, r)
                     } else {
                         for (let j = node.s; j <= node.e; j ++) {
-                            transform(p0, f(j))
+                            transform(p0, source.at(j))
                             ctx.beginPath()
                             ctx.arc(p0[0], p0[1], r, 0, PI2, false)
                             ctx.fill()
@@ -541,14 +556,14 @@ class Chart {
                 }
 
                 if (dataset.options.isStepped) {
-                    renderNodeStepped(ctx, tree, extract)
+                    renderNodeStepped(ctx, tree, source)
                 } else {
-                    renderNode(ctx, tree, extract)
+                    renderNode(ctx, tree, source)
                 }
                 const r = dataset.options.pointRadius
                 if (r > 0) {
                     ctx.fillStyle = dataset.options.lineColor
-                    renderNodePoints(ctx, tree, extract, r)
+                    renderNodePoints(ctx, tree, source, r)
                 }
             }
         }
@@ -558,6 +573,8 @@ class Chart {
             const fs = opts.fontSize * px
             ctx.font = `${fs}px/1 ${opts.fontFamily}`
             ctx.fillStyle = opts.axesColor
+            this.currentXBounds[0] = (0 - o[0]) / su[0] * gridScale[0] * u[0]
+            this.currentXBounds[1] = (w - o[0]) / su[0] * gridScale[0] * u[0]
             if (opts.xAxisLabelEnable) {
                 const xOffset = opts.xAxisLabelXOffset * px
                 const yOffset = opts.xAxisLabelYOffset * px
@@ -762,6 +779,11 @@ class Chart {
         // unclip
         if (clipPath) {
             ctx.restore()
+        }
+
+        // callback
+        if (opts.afterRepaint) {
+            opts.afterRepaint()
         }
     }
 }

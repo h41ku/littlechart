@@ -92,12 +92,12 @@ window.chart = chart
         xsBlocks.push(xs)
         ysBlocks.push(ys)
     }
-    const f = i => {
+    const at = i => {
         const k = Math.floor(i / M)
         const j = i - k * M
         return [ xsBlocks[k][j], ysBlocks[k][j] ]
     }
-    dataset.compile(f, N)
+    dataset.compile({ at, length: N })
     chart.datasets.push(dataset)
 }
 
@@ -112,7 +112,7 @@ window.chart = chart
         const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
         points.push([x, y])
     }
-    dataset.compile(i => points[i], points.length)
+    dataset.compile(points)
     chart.datasets.push(dataset)
 }
 
@@ -127,7 +127,7 @@ window.chart = chart
         const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
         points.push([x, y])
     }
-    dataset.compile(i => points[i], points.length)
+    dataset.compile(points)
     chart.datasets.push(dataset)
 }
 
@@ -141,7 +141,7 @@ window.chart = chart
         y += 1 + 2 * Math.random()
         points.push([x, y])
     }
-    dataset.compile(i => points[i], points.length)
+    dataset.compile(points)
     chart.datasets.push(dataset)
 }
 
