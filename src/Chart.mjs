@@ -251,14 +251,36 @@ class Chart {
             return false
         }
 
+        const opts = this.options
+
+        if (opts.legends) {
+            opts.legends.createLegends(
+                this.ctx,
+                {
+                    width: w,
+                    height: h,
+                    pixelRatio: opts.canvasRatio * opts.canvasPixelRatio,
+                    clip(left, top, right, bottom) {
+                        w = right - left
+                        h = bottom - top
+                        // TODO left, top is not used later
+                    }
+                },
+                this.datasets,
+                opts,
+                {
+                    isIntersects,
+                    // measureText: text => ctx.measureText(text)
+                }
+            )
+        }
+
         const bRect = new DOMRect( // flip by Y
             boundingRect.x,
             -boundingRect.y - boundingRect.height,
             boundingRect.width,
             boundingRect.height
         )
-
-        const opts = this.options
 
         const px = opts.canvasRatio * opts.canvasPixelRatio
         const canvasStep = vec2(opts.xCanvasStep, opts.yCanvasStep)
@@ -398,8 +420,6 @@ class Chart {
             r[1] = -r[1]
             vec2muladd(r, r, s, o)
         }
-
-        const p = vec2()
 
         // clear
         if (opts.clearFrame) {
