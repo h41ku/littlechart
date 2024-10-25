@@ -497,6 +497,7 @@ class Chart {
                     const x1 = Math.round(p1[0])
                     if (x0 === x1) {
                         ctx.beginPath()
+                        ctx.setLineDash(dataset.options.lineDash.map(x => x * px))
                         ctx.moveTo(x0, p0[1])
                         ctx.lineTo(x1, p1[1])
                         ctx.stroke()
@@ -505,6 +506,7 @@ class Chart {
                         renderNode(ctx, node.right, source)
                     } else {
                         ctx.beginPath()
+                        ctx.setLineDash(dataset.options.lineDash.map(x => x * px))
                         transform(p0, source.at(node.s))
                         ctx.moveTo(p0[0], p0[1])
                         for (let j = node.s + 1; j <= node.e; j ++) { // TODO use source.forEach
@@ -524,6 +526,7 @@ class Chart {
                     const x1 = Math.round(p1[0])
                     if (x0 === x1) {
                         ctx.beginPath()
+                        ctx.setLineDash(dataset.options.lineDash.map(x => x * px))
                         ctx.moveTo(x0, p0[1])
                         ctx.lineTo(x1, p1[1])
                         ctx.stroke()
@@ -532,6 +535,7 @@ class Chart {
                         renderNodeStepped(ctx, node.right, source)
                     } else {
                         ctx.beginPath()
+                        ctx.setLineDash(dataset.options.lineDash.map(x => x * px))
                         transform(p0, source.at(node.s))
                         ctx.moveTo(p0[0], p0[1])
                         let y = p0[1]

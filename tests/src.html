@@ -102,18 +102,50 @@ window.chart = chart
 }
 
 {
-    const dataset = new Dataset('Green dataset', {
+    const legend = 'Green dataset'
+    const groupId = 'greenGroup'
+    const dataset1 = new Dataset(legend, {
+        groupId,
+        lineColor: 'rgb(0,255,0)',
+        isStepped: true
+    })
+    const dataset2 = new Dataset(legend, {
+        groupId,
+        lineColor: 'rgb(0,255,0)',
+        lineDash: [5,5],
+        isStepped: true
+    })
+    const dataset3 = new Dataset(legend, {
+        groupId,
         lineColor: 'rgb(0,255,0)',
         isStepped: true
     })
     const T = 150, MIN = -50, MAX = 50
-    const points = []
+    const points1 = []
+    const points2 = []
+    const points3 = []
     for (let x = -6000; x <= -4000; x ++) {
         const y = (Math.sin(2 * Math.PI * x / T) + 1) / 2  * (MAX - MIN) + MIN
-        points.push([x, y])
+        if (x < -5500) {
+            points1.push([x, y])
+        } else if (x === -5500) {
+            points1.push([x, y])
+            points2.push([x, y])
+        } else if (x > -5500 && x < -4500) {
+            points2.push([x, y])
+        } else if (x === -4500) {
+            points2.push([x, y])
+            points3.push([x, y])
+        } else {
+            points3.push([x, y])
+        }
     }
-    dataset.compile(points)
-    chart.datasets.push(dataset)
+    dataset1.compile(points1)
+    dataset2.compile(points2)
+    dataset3.compile(points3)
+    chart.datasets.push(dataset1)
+    chart.datasets.push(dataset2)
+    chart.datasets.push(dataset3)
 }
 
 {

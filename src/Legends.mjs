@@ -58,8 +58,15 @@ function createLegends(ctx, viewport, datasets, opts) {
     itemPadding.right *= pixelRatio
     itemPadding.bottom *= pixelRatio
     ctx.font = `${fs}px/1 ${fontFamily}`
-    for (let i = 0, n = datasets.length; i < n; i ++) {
-        const dataset = datasets[i]
+    const legends = [ ...Object.values(datasets.reduce((groups, dataset, i) => {
+        const groupId = dataset.options.groupId === null ? i : dataset.options.groupId
+        if (!(groupId in groups)) {
+            groups[groupId] = { dataset, i }
+        }
+        return groups
+    }, {})) ].sort((a, b) => a.i - b.i)
+    for (let i = 0, n = legends.length; i < n; i ++) {
+        const dataset = legends[i].dataset
         const content = legendText(dataset, opts)
         if (content) {
             const metrics = ctx.measureText(content)
@@ -74,7 +81,7 @@ function createLegends(ctx, viewport, datasets, opts) {
                     offsetTop: itemPadding.top,
                 },
                 mark,
-                dataset,
+                lineColor: dataset.options.lineColor,
                 width,
                 left: 0,
                 top: 0
@@ -177,7 +184,7 @@ function renderLegends(legends) {
     const fs = font.size
     ctx.font = `${Math.round(fs)}px/1 ${font.family}`
     for (let i = 0, n = list.length; i < n; i ++) {
-        let { left, top, text, mark, dataset: { options: { lineColor } } } = list[i]
+        let { left, top, text, mark, lineColor } = list[i]
 // ctx.fillStyle = 'rgba(255,0,0,0.1)'
 // ctx.fillRect(left,top,list[i].width,rowHeight)
         ctx.fillStyle = color.text

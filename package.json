@@ -1,16 +1,13 @@
 {
     "name": "littlechart",
-    "version": "2.1.1",
+    "version": "3.0.0",
     "type": "module",
     "author": "h41ku <h41ku.c0de@ya.ru>",
     "license": "MIT",
     "scripts": {
-        "build-esm": "webpack --config webpack.config.esm.bundle.js",
-        "build-umd": "webpack --config webpack.config.umd.bundle.js",
-        "build": "npm run build-esm && npm run build-umd"
+        "build": "esbuild src/LittleChart.mjs --outfile=dist/littlechart.min.js --bundle --minify --sourcemap --charset=utf8 --format=esm"
     },
     "devDependencies": {
-        "webpack": "^5.75.0",
-        "webpack-cli": "^5.0.1"
+        "esbuild": "0.24.0"
     }
 }

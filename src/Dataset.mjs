@@ -37,6 +37,9 @@ const buildTree = (source, s, e, T) => {
 class Dataset {
 
     constructor(legend = '', options = {}) { // TODO use mergeOptions
+        if (!('groupId' in options)) {
+            options.groupId = null
+        }
         if (!('lineColor' in options)) {
             const f = () => Math.round(Math.random() * 256)
             options.lineColor = `rgb(${f()},${f()},${f()})`
@@ -46,6 +49,9 @@ class Dataset {
         }
         if (!('lineWidth' in options)) {
             options.lineWidth = 1
+        }
+        if (!('lineDash' in options)) {
+            options.lineDash = []
         }
         if (!('pointRadius' in options)) {
             options.pointRadius = 0
