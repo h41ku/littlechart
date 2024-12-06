@@ -515,6 +515,7 @@ class Chart {
                         }
                         ctx.stroke()
                     }
+                    ctx.setLineDash([])
                 }
 
                 const renderNodeStepped = (ctx, node, source) => {
@@ -547,6 +548,7 @@ class Chart {
                         }
                         ctx.stroke()
                     }
+                    ctx.setLineDash([])
                 }
 
                 const PI2 = 2 * Math.PI
