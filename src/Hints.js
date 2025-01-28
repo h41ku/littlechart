@@ -1,5 +1,5 @@
-import { vec2 } from './vec2.mjs'
-import mergeObjects from './mergeObjects.mjs'
+import { vec2 } from './vec2.js'
+import mergeObjects from './mergeObjects.js'
 
 function defaultHintsSettings() {
     return {

@@ -1,4 +1,4 @@
-import mergeObjects from './mergeObjects.mjs'
+import mergeObjects from './mergeObjects.js'
 
 function defaultLegendsSettings() {
     return {

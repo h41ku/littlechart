@@ -1,11 +1,12 @@
 {
     "name": "littlechart",
-    "version": "3.0.1",
+    "version": "3.0.2",
     "type": "module",
+    "main": "src/LittleChart.js",
     "author": "h41ku <h41ku.c0de@ya.ru>",
     "license": "MIT",
     "scripts": {
-        "build": "esbuild src/LittleChart.mjs --outfile=dist/littlechart.min.js --bundle --minify --sourcemap --charset=utf8 --format=esm"
+        "build": "esbuild src/LittleChart.js --outfile=dist/littlechart.min.js --bundle --minify --sourcemap --charset=utf8 --format=esm"
     },
     "devDependencies": {
         "esbuild": "0.24.0"
