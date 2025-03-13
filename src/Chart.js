@@ -589,7 +589,7 @@ class Chart {
                 const r = dataset.options.pointRadius
                 if (r > 0) {
                     ctx.fillStyle = dataset.options.lineColor
-                    renderNodePoints(ctx, tree, source, r)
+                    renderNodePoints(ctx, tree, source, r * px)
                 }
             }
         }
