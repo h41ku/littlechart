@@ -71,7 +71,7 @@ class Dataset {
         this.tree = length > 0 ? buildTree(source, 0, length - 1, T) : null
     }
 
-    getExtrems(initialMinX = null, initialMinY = null, initialMaxX = null, initialMaxY = null) { // TODO use tree
+    getExtremes(initialMinX = null, initialMinY = null, initialMaxX = null, initialMaxY = null) { // TODO use tree
         let minX = initialMinX
         let maxX = initialMaxX
         let minY = initialMinY
@@ -96,7 +96,7 @@ class Dataset {
     }
 
     getBoundingRect() { // DEPRECATED
-        const { minX, minY, maxX, maxY } = this.getExtrems()
+        const { minX, minY, maxX, maxY } = this.getExtremes()
         const rect = new DOMRect(minX, minY, maxX - minX, maxY - minY)
         rect.minX = minX
         rect.minY = minY
