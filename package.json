@@ -1,6 +1,6 @@
 {
     "name": "littlechart",
-    "version": "3.0.3",
+    "version": "3.0.4",
     "type": "module",
     "main": "src/LittleChart.js",
     "author": "h41ku <h41ku.c0de@ya.ru>",
@@ -10,5 +10,9 @@
     },
     "devDependencies": {
         "esbuild": "^0.25.1"
+    },
+    "dependencies": {
+        "binary-search-algorithms": "^0.0.1",
+        "touchgestures": "^0.0.1"
     }
 }
