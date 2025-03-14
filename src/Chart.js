@@ -1,6 +1,6 @@
 import { isZero, vec2, vec2copy, vec2add, vec2sub, vec2mul, vec2div, vec2muladd, vec2neglerp, vec2subdiv, vec2lerp, vec2clone } from './vec2.js'
-import { findLess } from './BinarySearch.js'
-import TouchGestures from './TouchGestures.js'
+import { findLess } from 'binary-search-algorithms/sync'
+import TouchGestures, * as touchGesturesEvents from 'touchgestures'
 import { defaultHintsSettings, createHints, displaceHints, renderHints } from './Hints.js'
 import { defaultLegendsSettings, createLegends, renderLegends } from './Legends.js'
 import mergeObjects from './mergeObjects.js'
@@ -127,17 +127,17 @@ class Chart {
 
         this.isListening = false
         this.listeners = { }
-        this.listeners[TouchGestures.EVT_NAME_POINTERDOWN] = evt => {
+        this.listeners[touchGesturesEvents.POINTER_DOWN] = evt => {
             elCanvas.style.cursor = options.cursorGrabbing
             evt.detail.originalEvent.preventDefault()
             mouseState.down = true
             pointFromMouseEvent(mouseState.pt0, evt.detail)
         }
-        this.listeners[TouchGestures.EVT_NAME_POINTERUP] = evt => {
+        this.listeners[touchGesturesEvents.POINTER_UP] = evt => {
             mouseState.down = false
             elCanvas.style.cursor = options.cursorPointer
         }
-        this.listeners[TouchGestures.EVT_NAME_POINTERMOVE] = evt => {
+        this.listeners[touchGesturesEvents.POINTER_MOVE] = evt => {
             const isInsideCanvas = pointFromMouseEvent(mouseState.pt, evt.detail)
             if (mouseState.down) {
                 vec2sub(mouseState.delta, mouseState.pt, mouseState.pt0)
@@ -158,7 +158,7 @@ class Chart {
                 this.repaint()
             }
         }
-        this.listeners[TouchGestures.EVT_NAME_POINTERZOOM] = evt => {
+        this.listeners[touchGesturesEvents.POINTER_ZOOM] = evt => {
             evt.detail.originalEvent.preventDefault()
             const deltaScale = evt.detail.deltaScale
             const doScaleX = options.userScaleX === true
@@ -189,7 +189,7 @@ class Chart {
         this.datasets.forEach(dataset => {
             const { source } = dataset
             const length = source.length
-            const i0 = findLess(i => source.at(i)[0], 0, length - 1, p[0])
+            const i0 = findLess(i => source.at(i)[0] - p[0], 0, length - 1)
             const i1 = i0 + 1
             if (i0 >= 0 && i1 < length) {
                 const r = vec2()
@@ -316,7 +316,7 @@ class Chart {
         this.repaint()
     }
 
-    getExtrems(initialMinX = null, initialMinY = null, initialMaxX = null, initialMaxY = null) {
+    getExtremes(initialMinX = null, initialMinY = null, initialMaxX = null, initialMaxY = null) {
 
         let minX = initialMinX
         let maxX = initialMaxX
@@ -324,18 +324,18 @@ class Chart {
         let maxY = initialMaxY
 
         this.datasets.forEach(dataset => {
-            const extrems = dataset.getExtrems()
-            if (minX === null || minX > extrems.minX) {
-                minX = extrems.minX
+            const extremes = dataset.getExtremes()
+            if (minX === null || minX > extremes.minX) {
+                minX = extremes.minX
             }
-            if (maxX === null || maxX < extrems.maxX) {
-                maxX = extrems.maxX
+            if (maxX === null || maxX < extremes.maxX) {
+                maxX = extremes.maxX
             }
-            if (minY === null || minY > extrems.minY) {
-                minY = extrems.minY
+            if (minY === null || minY > extremes.minY) {
+                minY = extremes.minY
             }
-            if (maxY === null || maxY < extrems.maxY) {
-                maxY = extrems.maxY
+            if (maxY === null || maxY < extremes.maxY) {
+                maxY = extremes.maxY
             }
         })
 
@@ -344,7 +344,7 @@ class Chart {
 
     getBoundingRect(initialMinX = null, initialMinY = null, initialMaxX = null, initialMaxY = null) { // DEPRECATED
 
-        const { minX, minY, maxX, maxY } = this.getExtrems()
+        const { minX, minY, maxX, maxY } = this.getExtremes()
 
         const rect = new DOMRect(minX, minY, maxX - minX, maxY - minY)
         rect.minX = minX
@@ -802,7 +802,7 @@ class Chart {
             renderHints(hints)
         }
 
-        // unclip
+        // disable clipping
         if (clipPath) {
             ctx.restore()
         }
