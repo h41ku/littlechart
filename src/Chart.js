@@ -1,5 +1,5 @@
 import { isZero, vec2, vec2copy, vec2add, vec2sub, vec2mul, vec2div, vec2muladd, vec2neglerp, vec2subdiv, vec2lerp, vec2clone } from './vec2.js'
-import { findLess } from 'binary-search-algorithms/sync'
+import { findLess, findLessOrEqual } from 'binary-search-algorithms/sync'
 import TouchGestures, * as touchGesturesEvents from 'touchgestures'
 import { defaultHintsSettings, createHints, displaceHints, renderHints } from './Hints.js'
 import { defaultLegendsSettings, createLegends, renderLegends } from './Legends.js'
@@ -39,7 +39,6 @@ const defaultOptions = {
     xAxisSubdivisions: 10.0,
     yAxisSubdivisions: 10.0,
     lineWidth: 1,
-    pointSize: 0,
     fontSize: 15,
     fontFamily: 'monospace',
     xAxisLabelXOffset: 0,
@@ -90,7 +89,8 @@ const defaultOptions = {
     bindEventHandlers: true,
     invertMouseWheel: false,
     mouseWheelStep: 0.1,
-    afterRepaint: null
+    afterRepaint: null,
+    snapToPoints: false
 }
 
 class Chart {
@@ -186,24 +186,47 @@ class Chart {
 
     computeFocusPoints(p) {
 
-        this.datasets.forEach(dataset => {
-            const { source } = dataset
-            const length = source.length
-            const i0 = findLess(i => source.at(i)[0] - p[0], 0, length - 1)
-            const i1 = i0 + 1
-            if (i0 >= 0 && i1 < length) {
-                const r = vec2()
-                const p1 = source.at(i0)
-                const p2 = source.at(i1)
-                const t = (p[0] - p1[0]) / (p2[0] - p1[0])
-                const s = vec2(t, dataset.options.isStepped ? 0 : t)
-                vec2lerp(r, p1, p2, s)
-                r.source = { i0, i1, s }
-                dataset.focusPoint = r
-            } else {
-                dataset.focusPoint = null
-            }
-        })
+        const { snapToPoints } = this.options
+
+        if (snapToPoints) {
+            this.datasets.forEach(dataset => {
+                const { source } = dataset
+                const length = source.length
+                const i0 = findLessOrEqual(i => source.at(i)[0] - p[0], 0, length - 1)
+                const i1 = i0 < length ? i0 + 1 : i0
+                if (i0 >= 0) {
+                    const r = vec2()
+                    const p1 = source.at(i0)
+                    vec2copy(r, p1)
+                    const t = 0
+                    const s = vec2(t, dataset.options.isStepped ? 0 : t)
+                    r.source = { i0, i1, s }
+                    dataset.focusPoint = r
+                } else {
+                    dataset.focusPoint = null
+                }
+            })
+        } else {
+            this.datasets.forEach(dataset => {
+                const { source } = dataset
+                const length = source.length
+                const i0 = findLess(i => source.at(i)[0] - p[0], 0, length - 1)
+                const i1 = i0 + 1
+                if (i0 >= 0 && i1 < length) {
+                    const r = vec2()
+                    const p1 = source.at(i0)
+                    const p2 = source.at(i1)
+                    const t = (p[0] - p1[0]) / (p2[0] - p1[0])
+                    const s = vec2(t, dataset.options.isStepped ? 0 : t)
+                    vec2lerp(r, p1, p2, s)
+                    r.source = { i0, i1, s }
+                    dataset.focusPoint = r
+                } else {
+                    dataset.focusPoint = null
+                }
+            })
+            
+        }
         vec2copy(this.focusPoint, p)
     }
 

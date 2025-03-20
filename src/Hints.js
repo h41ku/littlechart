@@ -66,7 +66,7 @@ const defaultSettings = defaultHintsSettings()
 
 function createHints(ctx, focusPoint, viewport, datasets, opts, helpers) {
     // settings
-    const { fontFamily, fontSize } = opts
+    const { fontFamily, fontSize, snapToPoints } = opts
     const { hintText, settings: passedSettings } = opts.hints
     const settings = mergeObjects(defaultSettings, passedSettings)
     const {
@@ -148,6 +148,7 @@ function createHints(ctx, focusPoint, viewport, datasets, opts, helpers) {
     transform(p, focusPoint)
     return {
         ctx,
+        snapToPoints,
         focus: {
             origin: focusPoint,
             x: p[0],
@@ -273,6 +274,7 @@ const renderHints = hints => {
     // settings
     const {
         ctx,
+        snapToPoints,
         list,
         settings: {
             font,
@@ -295,21 +297,34 @@ const renderHints = hints => {
         }
     }
     // draw focus axes
+    const renderedX = {}
+    const renderedY = {}
     if (axes.y) {
         const { color, lineWidth } = axes.y
         ctx.fillStyle = color
         for (let i = 0, n = list.length; i < n; i ++) {
             const { focusPoints } = list[i]
             for (let j = 0, m = focusPoints.length; j < m; j ++) {
-                const { y } = focusPoints[j]
-                ctx.fillRect(0, y, width, Math.round(lineWidth * pixelRatio))
+                const { x, y } = focusPoints[j]
+                if (!renderedX[x]) {
+                    ctx.fillRect(x, 0, Math.round(lineWidth * pixelRatio), height)
+                    renderedX[x] = true
+                }
+                if (!renderedY[y]) {
+                    ctx.fillRect(0, y, width, Math.round(lineWidth * pixelRatio))
+                    renderedY[y] = true
+                }
             }
         }
     }
-    if (axes.x) {
+    if (!snapToPoints && axes.x) {
         const { color, lineWidth } = axes.x
         ctx.fillStyle = color
-        ctx.fillRect(hints.focus.x, 0, Math.round(lineWidth * pixelRatio), height)
+        const x = hints.focus.x
+        if (!renderedX[x]) {
+            ctx.fillRect(hints.focus.x, 0, Math.round(lineWidth * pixelRatio), height)
+            renderedX[x] = true
+        }
     }
     // draw shadows
     if (shadow) {

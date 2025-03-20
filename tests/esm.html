@@ -45,10 +45,8 @@ const chart = new Chart(document.querySelector('canvas'), {
     // yAxisStep: 50.0,
     // xCanvasStep: 50,
     // yCanvasStep: 15,
-    // pointsOfInterestXAxisLabelEnable: false,
-    // pointsOfInterestYAxisLabelEnable: false,
-    // pointsOfInterestEnable: true,
     invertMouseWheel: true,
+    snapToPoints: false,
     userScaleY: evt => evt.detail.originalEvent.shiftKey ? false : true
 })
 
@@ -58,7 +56,7 @@ window.chart = chart
     const dataset = new Dataset('Red dataset', {
         lineColor: 'rgb(255,0,0)',
         // lineWidth: 2,
-        // pointRadius: 4,
+        pointRadius: 4,
         // isStepped: true,
     })
     const T = 150,
@@ -103,6 +101,7 @@ window.chart = chart
 {
     const dataset = new Dataset('Green dataset', {
         lineColor: 'rgb(0,255,0)',
+        pointRadius: 4,
         isStepped: true
     })
     const T = 150, MIN = -50, MAX = 50
@@ -118,6 +117,7 @@ window.chart = chart
 {
     const dataset = new Dataset('Blue dataset', {
         lineColor: 'rgb(0,0,255)',
+        pointRadius: 4,
         isStepped: true
     })
     const T = 150, MIN = -10000, MAX = 10000
@@ -132,7 +132,8 @@ window.chart = chart
 
 {
     const dataset = new Dataset('Magenta dataset', {
-        lineColor: 'rgb(255,0,255)'
+        lineColor: 'rgb(255,0,255)',
+        pointRadius: 4,
     })
     let y = -2000
     const points = []
